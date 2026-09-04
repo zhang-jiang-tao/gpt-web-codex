@@ -3,6 +3,7 @@
   "version": "2.2.11",
   "private": true,
   "description": "Desktop control center for ChatGPT Web planning and standalone Luna execution",
+  "desktopName": "gpt-web-codex.desktop",
   "author": "GPT Web Codex contributors",
   "type": "module",
   "main": "electron/main.cjs",
@@ -68,6 +69,7 @@
     "linux": {
       "category": "Development",
       "icon": "assets/icon.png",
+      "syncDesktopName": true,
       "target": ["AppImage"]
     },
     "nsis": {

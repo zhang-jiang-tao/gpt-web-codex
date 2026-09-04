@@ -6,7 +6,7 @@
 
 GPT Web Codex 是一个纯 MCP 启动器。普通 ChatGPT 网页对话负责规划，Luna 通过 `codex exec --json` 在本机执行并验证任务。
 
-> **平台状态：** 目前仅在 Windows 上完成了真实人工测试。Linux 和 macOS 构建会经过自动化 CI，但尚未在这两个操作系统上进行人工实机测试，相关支持应视为实验性功能。
+> **平台状态：** Windows 与 Ubuntu 26.04 x86_64 已完成真实人工测试，其中 Linux 已验证 AppImage、独立 MCP、终端/目录工具、Luna 执行、会话续接和 ChatGPT 网页端调用。macOS 目前只有自动化 CI 覆盖，尚未进行人工实机测试。
 
 ## 主要功能
 
@@ -62,11 +62,21 @@ OpenAI Tunnel → 本机独立 MCP 运行时
 - `file_list` 会返回每一项的类型、文件大小（如适用），以及 ISO 8601 格式的 `modified_at` 修改时间。
 - `terminal_exec` 用于执行普通 PowerShell/sh 命令，并等待返回受限长度的 stdout、stderr、状态和退出码。长任务或交互式任务使用 `terminal_start`、`terminal_status`、`terminal_write_stdin` 与 `terminal_cancel`，不会为了读取输出而重复执行命令。
 
+## Linux 实机部署
+
+Linux 的完整安装、已知问题和诊断流程见 [Linux 部署与排错](docs/linux.zh-CN.md)。几个容易忽略的要点：
+
+- 从源码构建需要 Bun 1.3.14，并且 `bun` 必须位于 PATH；npm 11 可能默认阻止 Bun 的安装脚本。
+- 直接运行 AppImage 可能需要 Ubuntu 的 `libfuse2t64`；项目安装脚本使用解包运行模式，不依赖 FUSE 挂载。
+- 在启动器已经运行时通过 CLI 创建配置，需要重启启动器才能让它读取配置并接管 Tunnel。
+- 非交互配置 Runtime Key 时使用 `--runtime-key-file /dev/stdin`，不要把密钥放在命令行参数中。
+- OpenAI Platform 与 ChatGPT 的网页登录状态相互独立；最终应从 ChatGPT 网页实际调用一次工具，不能只依赖本机 `doctor`。
+
 ## 本地开发
 
-当前需要 Windows、Codex CLI、支持自定义连接器的 ChatGPT 账户，以及用于 MCP 的 OpenAI Tunnel。安装包已经内置 Bun；从源码构建需要 Bun 1.3.14。
+当前支持 Windows 和 Linux x86_64，需要 Codex CLI、支持自定义连接器的 ChatGPT 账户，以及用于 MCP 的 OpenAI Tunnel。安装包已经内置 Bun；从源码构建需要 Bun 1.3.14。macOS 尚未实机验证。
 
-```powershell
+```bash
 git clone https://github.com/m4j2rpf766-crypto/gpt-web-codex.git
 cd gpt-web-codex
 bun install --frozen-lockfile
@@ -83,7 +93,7 @@ bun run launcher:dev
 
 ## 验证
 
-```powershell
+```bash
 bun x tsc --noEmit
 bun test tests
 bun run launcher:typecheck

@@ -6,7 +6,7 @@
 
 GPT Web Codex is a pure MCP launcher. A normal ChatGPT Web conversation is the planner; Luna executes and verifies local work through `codex exec --json` without changing Codex configuration or routing.
 
-> **Platform status:** Real-world manual testing has currently been completed only on Windows. Linux and macOS builds are covered by automated CI, but have not yet been manually tested on those operating systems; support for them should be considered experimental.
+> **Platform status:** Windows and Ubuntu 26.04 x86_64 have completed real-world manual testing. Linux verification covers the AppImage, standalone MCP, terminal and directory tools, Luna execution and session resume, and an actual ChatGPT Web tool call. macOS is covered by automated CI but has not yet been tested manually.
 
 ## What it does
 
@@ -61,11 +61,21 @@ OpenAI Tunnel → standalone local MCP runtime
 - `file_list` returns each entry's type, optional file size, and `modified_at` as an ISO 8601 timestamp.
 - `terminal_exec` runs ordinary PowerShell/sh commands and waits for bounded stdout, stderr, status, and exit code. Long-running or interactive work uses `terminal_start`, `terminal_status`, `terminal_write_stdin`, and `terminal_cancel` without rerunning the command.
 
+## Linux deployment
+
+See [Linux deployment and troubleshooting](docs/linux.md) for the complete installation, known-issue, and diagnostic procedure. The easy-to-miss points are:
+
+- Source builds require Bun 1.3.14 with `bun` on PATH; npm 11 may block Bun's install script by default.
+- Running an AppImage directly may require Ubuntu's `libfuse2t64`; the project installer uses extract-and-run mode and does not require a FUSE mount.
+- If CLI setup creates the configuration while the launcher is already open, restart the launcher so it reloads the configuration and owns the Tunnel.
+- For non-interactive Runtime Key setup, use `--runtime-key-file /dev/stdin`; never put the key in command-line arguments.
+- OpenAI Platform and ChatGPT browser sessions are independent. Prove the final connection with a real ChatGPT Web tool call, not only the local `doctor` result.
+
 ## Development
 
-Requirements: Windows, Codex CLI, a ChatGPT account with custom connectors, and an OpenAI Tunnel for MCP. The packaged launcher includes Bun; building from source requires Bun 1.3.14.
+Requirements: Windows or Linux x86_64, Codex CLI, a ChatGPT account with custom connectors, and an OpenAI Tunnel for MCP. The packaged launcher includes Bun; building from source requires Bun 1.3.14. macOS has not yet been manually tested.
 
-```powershell
+```bash
 git clone https://github.com/m4j2rpf766-crypto/gpt-web-codex.git
 cd gpt-web-codex
 bun install --frozen-lockfile
@@ -82,7 +92,7 @@ The connector name remains stable because ChatGPT caches tool contracts. Legacy 
 
 ## Verification
 
-```powershell
+```bash
 bun x tsc --noEmit
 bun test tests
 bun run launcher:typecheck
