@@ -1,5 +1,6 @@
-export const IMAGE_PREVIEW_RESOURCE_URI = "ui://webgpt-luna/image-preview-v12.html";
+export const IMAGE_PREVIEW_RESOURCE_URI = "ui://webgpt-luna/image-preview-v13.html";
 export const LEGACY_IMAGE_PREVIEW_RESOURCE_URIS = [
+  "ui://webgpt-luna/image-preview-v12.html",
   "ui://webgpt-luna/image-preview-v11.html",
   "ui://webgpt-luna/image-preview-v10.html",
   "ui://webgpt-luna/image-preview-v9.html",
@@ -56,17 +57,6 @@ export const IMAGE_PREVIEW_HTML = String.raw`<!doctype html>
       let lastPreviewId = null;
       let lastPersistedPreviewId = null;
       let pendingPreviewState = null;
-      const storageNamespace = "__WEBGPT_PREVIEW_NAMESPACE__";
-      const conversationKey = (() => {
-        try {
-          const referrer = new URL(document.referrer);
-          const match = referrer.pathname.match(/\/c\/([^/?#]+)/);
-          return match?.[1] || referrer.pathname || "unknown";
-        } catch { return "unknown"; }
-      })();
-      const ledgerKey = "webgpt-image-preview-ledger:" + storageNamespace + ":" + conversationKey;
-      const claimKey = "webgpt-image-preview-claim:" + storageNamespace + ":" + conversationKey;
-
       const formatBytes = (bytes) => bytes < 1024 ? bytes + " B" : bytes < 1048576 ? (bytes / 1024).toFixed(1) + " KB" : (bytes / 1048576).toFixed(1) + " MB";
       const walk = (value, match) => {
         const seen = new Set();
@@ -139,38 +129,6 @@ export const IMAGE_PREVIEW_HTML = String.raw`<!doctype html>
           return false;
         }
       };
-      const readLedger = () => {
-        try {
-          const value = JSON.parse(window.localStorage.getItem(ledgerKey) || "[]");
-          return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
-        } catch { return []; }
-      };
-      const rememberPreview = (previewId) => {
-        if (!previewId) return;
-        try {
-          const ledger = readLedger();
-          if (!ledger.includes(previewId)) {
-            ledger.push(previewId);
-            window.localStorage.setItem(ledgerKey, JSON.stringify(ledger.slice(-100)));
-          }
-        } catch {}
-      };
-      const claimRememberedPreview = () => {
-        const ledger = readLedger();
-        if (!ledger.length) return null;
-        try {
-          const now = Date.now();
-          let claim = JSON.parse(window.sessionStorage.getItem(claimKey) || "null");
-          if (!claim || claim.total !== ledger.length || now - claim.last_claimed_at > 1500 || claim.next_index >= ledger.length) {
-            claim = { total: ledger.length, next_index: 0, last_claimed_at: now };
-          }
-          const previewId = ledger[claim.next_index] || null;
-          claim.next_index += 1;
-          claim.last_claimed_at = now;
-          window.sessionStorage.setItem(claimKey, JSON.stringify(claim));
-          return previewId;
-        } catch { return ledger[0] || null; }
-      };
       const persistPreviewState = (image) => {
         if (!image?.preview_id || image.preview_id === lastPersistedPreviewId) return;
         lastPersistedPreviewId = image.preview_id;
@@ -190,7 +148,6 @@ export const IMAGE_PREVIEW_HTML = String.raw`<!doctype html>
       const renderImage = (image) => {
         if (!image?.data_url) return false;
         lastPreviewId = image.preview_id || lastPreviewId;
-        rememberPreview(lastPreviewId);
         preview.src = image.data_url;
         preview.alt = "Local image preview: " + (image.name || "image");
         name.textContent = image.name || "image";
@@ -304,12 +261,7 @@ export const IMAGE_PREVIEW_HTML = String.raw`<!doctype html>
         else renderFrom();
         setTimeout(() => {
           if (!rendered && !restoringPreviewId && !lastPreviewId) {
-            const rememberedPreviewId = claimRememberedPreview();
-            if (rememberedPreviewId) {
-              void restorePreview(rememberedPreviewId);
-              return;
-            }
-            statusText.textContent = "图片预览数据不可用，请重新调用图片预览工具。";
+            statusText.textContent = "当前工具结果没有可显示的图片。";
           }
         }, 2000);
       };
