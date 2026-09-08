@@ -265,7 +265,7 @@ export async function runChatGptMcpServer(options: { statePath?: string } = {}):
     inputSchema: {
       web_session_id: sessionId.optional(),
       workspace_path: z.string().min(1).max(16_384),
-      model: z.string().min(1).max(200).default(defaultLunaModel),
+      model: z.string().min(1).max(200).optional(),
       reasoning_effort: reasoning.default("low"),
       fast: z.boolean().default(true),
       permission_mode: sandbox.default("workspace-write"),
@@ -292,10 +292,11 @@ export async function runChatGptMcpServer(options: { statePath?: string } = {}):
     if (!existsSync(workspacePath) || !statSync(workspacePath).isDirectory()) {
       throw new Error(`Workspace directory does not exist: ${workspacePath}`);
     }
+    const existingBinding = jobs.store.binding(webSessionId);
     const binding = jobs.store.initializeBinding(webSessionId, {
       workspacePath,
       permissionMode: input.permission_mode,
-      model: input.model,
+      model: input.model?.trim() || existingBinding?.model || defaultLunaModel,
       reasoning: input.reasoning_effort,
       fast: input.fast,
       timeoutMs: input.timeout_ms,
