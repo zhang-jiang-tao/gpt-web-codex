@@ -22,6 +22,15 @@ function validateSessionId(value: string): string {
   return id;
 }
 
+export function summarizeLunaWork(prompt: string, maxChars = 160): string {
+  const normalized = prompt
+    .replace(/\r?\n+/g, " · ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, Math.max(1, maxChars - 1)).trimEnd()}…`;
+}
+
 function eventText(event: Record<string, unknown>): string | undefined {
   if (event.type === "item.completed" && event.item && typeof event.item === "object") {
     const item = event.item as Record<string, unknown>;
@@ -111,6 +120,7 @@ export class LunaJobManager {
       id,
       webSessionId,
       promptChars: prompt.length,
+      workSummary: summarizeLunaWork(prompt),
       wantsImagePreview: requestedImagePreview(prompt),
       imageArtifacts: [],
       cwd,
