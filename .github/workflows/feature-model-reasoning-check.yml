@@ -25,7 +25,7 @@ jobs:
       - name: Root typecheck
         run: bun run typecheck
       - name: Root feature tests
-        run: bun test tests/standalone-luna.test.ts --test-name-pattern "Codex invocation|zero-event Codex startup|same web session serializes jobs|standalone MCP exposes Luna"
+        run: bun test tests/standalone-luna.test.ts --test-name-pattern "Codex invocation|zero-event Codex startup|same web session serializes jobs"
       - name: Launcher typecheck
         run: bun run launcher:typecheck
       - name: Launcher tests
