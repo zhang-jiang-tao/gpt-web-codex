@@ -13,9 +13,15 @@ import {
   IMAGE_PREVIEW_RESOURCE_URI,
   LEGACY_IMAGE_PREVIEW_RESOURCE_URIS,
 } from "../src/standalone/image-preview";
-import { LunaJobManager } from "../src/standalone/luna-jobs";
+import { LunaJobManager, summarizeLunaWork } from "../src/standalone/luna-jobs";
 import { LunaStateStore } from "../src/standalone/state-store";
 import type { LunaJob } from "../src/standalone/types";
+
+test("Luna work summaries are bounded and single-line", () => {
+  const prompt = "修复 P02 页面\n\n状态徽章需要统一，并调整工作安排布局。";
+  expect(summarizeLunaWork(prompt)).toBe("修复 P02 页面 · 状态徽章需要统一，并调整工作安排布局。");
+  expect(summarizeLunaWork("x".repeat(300), 20)).toBe("xxxxxxxxxxxxxxxxxxx…");
+});
 
 async function eventually(check: () => boolean, timeoutMs = 5_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
