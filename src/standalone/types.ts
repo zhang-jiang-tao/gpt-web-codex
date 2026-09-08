@@ -21,6 +21,7 @@ export interface LunaJob {
   id: string;
   webSessionId: string;
   promptChars: number;
+  workSummary?: string;
   wantsImagePreview?: boolean;
   imageArtifacts?: string[];
   cwd: string;
@@ -39,6 +40,8 @@ export interface LunaJob {
   terminalEvent?: string;
   finalMessage?: string;
   error?: string;
+  stderrTail?: string;
+  lastEventAt?: string;
   mutationSeen: boolean;
   eventCount: number;
   attempts: number;
