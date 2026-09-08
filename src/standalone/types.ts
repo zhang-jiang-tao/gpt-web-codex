@@ -1,5 +1,5 @@
 export type LunaSandbox = "read-only" | "workspace-write" | "danger-full-access";
-export type LunaReasoning = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
+export type LunaReasoning = "none" | "low" | "medium" | "high" | "xhigh" | "max";
 export type LunaJobStatus = "queued" | "running" | "completed" | "failed" | "timed_out" | "cancelled";
 
 export interface LunaSessionBinding {
@@ -21,7 +21,6 @@ export interface LunaJob {
   id: string;
   webSessionId: string;
   promptChars: number;
-  workSummary?: string;
   wantsImagePreview?: boolean;
   imageArtifacts?: string[];
   cwd: string;
@@ -40,8 +39,6 @@ export interface LunaJob {
   terminalEvent?: string;
   finalMessage?: string;
   error?: string;
-  stderrTail?: string;
-  lastEventAt?: string;
   mutationSeen: boolean;
   eventCount: number;
   attempts: number;
