@@ -95,3 +95,27 @@ code { font-family: var(--font-mono); }
 .pure-quota-meta { margin-top:13px; font-size:12px; }
 .pure-quota-empty { color:#888; padding:4px 0; }
 @media (max-width: 820px) { .pure-quota-grid { grid-template-columns:1fr; } }
+
+.pure-jobs-head { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:12px; }
+.pure-jobs-head button { border:1px solid #3a3a3a; background:#282828; color:#eee; border-radius:9px; padding:8px 12px; }
+.pure-jobs-card { padding:0; overflow:hidden; margin-bottom:16px; }
+.pure-jobs-card > h3 { margin:0; padding:16px 18px; border-bottom:1px solid #2d2d2d; font-size:14px; }
+.pure-job-table { min-width:920px; }
+.pure-job-row { display:grid; grid-template-columns:100px minmax(220px,2fr) minmax(210px,1.5fr) 150px 92px 72px; gap:12px; align-items:center; padding:12px 18px; border-bottom:1px solid #292929; font-size:12px; }
+.pure-job-row:last-child { border-bottom:0; }
+.pure-job-header { color:#707070; font-size:11px; text-transform:uppercase; letter-spacing:.06em; background:#1a1a1a; }
+.pure-job-row > span { min-width:0; overflow:hidden; }
+.pure-job-row small { display:block; color:#777; margin-top:3px; }
+.pure-job-work, .pure-job-workspace { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pure-job-work { color:#e5e5e5; }
+.pure-job-workspace { color:#8d8d8d; font-family:var(--font-mono); }
+.pure-job-status { display:inline-flex; align-items:center; border:1px solid #3b3b3b; border-radius:999px; padding:4px 8px; font-size:11px; white-space:nowrap; }
+.pure-job-status.running { border-color:#315142; color:#65d49b; }
+.pure-job-status.queued { border-color:#55472d; color:#e7b34a; }
+.pure-job-status.completed { color:#aaa; }
+.pure-job-status.failed, .pure-job-status.timed_out { border-color:#713d3d; color:#ef7777; }
+.pure-job-status.cancelled { color:#777; }
+.pure-jobs-error { margin-bottom:16px; color:#ffb7b7; border-color:#713d3d; }
+@media (max-width: 1050px) {
+  .pure-jobs-card { overflow:auto; }
+}
