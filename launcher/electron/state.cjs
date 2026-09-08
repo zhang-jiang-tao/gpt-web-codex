@@ -8,6 +8,7 @@ const DEFAULT_STATE = Object.freeze({
   keepRunningOnClose: true,
   proxyEnabled: false,
   proxyUrl: DEFAULT_PROXY_URL,
+  codexDefaultsEnabled: false,
   defaultModel: DEFAULT_CODEX_MODEL,
   defaultReasoning: DEFAULT_CODEX_REASONING,
   mcpGuideStep: 0,
@@ -23,6 +24,7 @@ function readState(filePath) {
       keepRunningOnClose: parsed.keepRunningOnClose,
       proxyEnabled: parsed.proxyEnabled,
       proxyUrl: parsed.proxyUrl,
+      codexDefaultsEnabled: parsed.codexDefaultsEnabled,
       defaultModel: parsed.defaultModel,
       defaultReasoning: parsed.defaultReasoning,
       mcpGuideStep: parsed.mcpGuideStep,
@@ -33,7 +35,7 @@ function readState(filePath) {
     if (state.language !== null && state.language !== "en" && state.language !== "zh-CN") {
       state.language = DEFAULT_STATE.language;
     }
-    for (const key of ["keepRunningOnClose", "proxyEnabled"]) {
+    for (const key of ["keepRunningOnClose", "proxyEnabled", "codexDefaultsEnabled"]) {
       if (typeof state[key] !== "boolean") state[key] = DEFAULT_STATE[key];
     }
     try {
