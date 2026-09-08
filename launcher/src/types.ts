@@ -1,5 +1,5 @@
 export type Language = "en" | "zh-CN";
-export type Surface = "dashboard" | "mcp" | "activity" | "settings";
+export type Surface = "dashboard" | "jobs" | "mcp" | "activity" | "settings";
 
 export interface LauncherState {
   version: 1;
@@ -71,6 +71,32 @@ export interface CodexOverview {
   warnings: string[];
 }
 
+export type CodexJobStatus = "queued" | "running" | "completed" | "failed" | "timed_out" | "cancelled";
+
+export interface CodexJobItem {
+  id: string;
+  status: CodexJobStatus;
+  workSummary: string | null;
+  workspacePath: string;
+  model: string | null;
+  reasoning: string | null;
+  permissionMode: string | null;
+  pid: number | null;
+  attempts: number;
+  createdAt: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  error: string | null;
+}
+
+export interface CodexJobsSnapshot {
+  activeCount: number;
+  active: CodexJobItem[];
+  recent: CodexJobItem[];
+  updatedAt: string;
+}
+
 export interface LauncherSnapshot {
   state: LauncherState;
   connectorName: string;
@@ -104,6 +130,7 @@ export interface LauncherApi {
   setProxySettings(input: { enabled: boolean; url: string }): Promise<LauncherState>;
   setDefaultModel(model: string): Promise<LauncherState>;
   codexOverview(): Promise<CodexOverview>;
+  codexJobs(): Promise<CodexJobsSnapshot>;
   logs(limit?: number): Promise<LogRecord[]>;
   openLogs(): Promise<string>;
   installUpdate(): Promise<boolean>;
