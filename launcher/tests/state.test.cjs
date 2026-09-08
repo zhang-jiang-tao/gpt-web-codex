@@ -17,6 +17,7 @@ test("launcher state persists only pure MCP preferences atomically", () => {
       proxyEnabled: false,
       proxyUrl: "http://127.0.0.1:10808",
       defaultModel: "gpt-5.6-luna",
+      defaultReasoning: "low",
       mcpGuideStep: 0,
     });
     store.update({
@@ -32,6 +33,7 @@ test("launcher state persists only pure MCP preferences atomically", () => {
       proxyEnabled: false,
       proxyUrl: "http://127.0.0.1:10808",
       defaultModel: "gpt-5.6-luna",
+      defaultReasoning: "low",
       mcpGuideStep: 0,
       mcpRuntimeInstalled: true,
       mcpSetupComplete: true,
@@ -65,6 +67,7 @@ test("legacy browser and onboarding state is removed during migration", () => {
       proxyEnabled: false,
       proxyUrl: "http://127.0.0.1:10808",
       defaultModel: "gpt-5.6-luna",
+      defaultReasoning: "low",
       mcpGuideStep: 2,
     }));
     const state = createStateStore(file).read();
@@ -75,6 +78,7 @@ test("legacy browser and onboarding state is removed during migration", () => {
       proxyEnabled: false,
       proxyUrl: "http://127.0.0.1:10808",
       defaultModel: "gpt-5.6-luna",
+      defaultReasoning: "low",
       mcpGuideStep: 2,
     });
     const persisted = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -99,6 +103,7 @@ test("invalid pure MCP preferences are repaired", () => {
       proxyEnabled: "yes",
       proxyUrl: "socks5://bad-proxy",
       defaultModel: "bad model with spaces",
+      defaultReasoning: "impossible",
       mcpGuideStep: 99,
       coreSetupComplete: "yes",
     }));
@@ -109,6 +114,7 @@ test("invalid pure MCP preferences are repaired", () => {
       proxyEnabled: false,
       proxyUrl: "http://127.0.0.1:10808",
       defaultModel: "gpt-5.6-luna",
+      defaultReasoning: "low",
       mcpGuideStep: 0,
     });
   } finally {
