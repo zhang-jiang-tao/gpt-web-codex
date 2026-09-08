@@ -7,6 +7,11 @@ on:
       - main
     paths:
       - ".github/workflows/build-windows-exe.yml"
+      - "launcher/**"
+      - "src/**"
+      - "tests/**"
+      - "package.json"
+      - "bun.lock"
 
 permissions:
   contents: write
@@ -38,6 +43,9 @@ jobs:
 
       - name: Typecheck
         run: bun x tsc --noEmit
+
+      - name: Run launcher regression tests
+        run: bun run --cwd launcher test
 
       - name: Run widget regression tests
         shell: pwsh
