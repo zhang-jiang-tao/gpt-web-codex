@@ -85,6 +85,15 @@ function normalizeModels(result) {
       description: String(model.description || "").trim(),
       hidden: model.hidden === true,
       isDefault: model.isDefault === true,
+      defaultReasoningEffort: typeof model.defaultReasoningEffort === "string" ? model.defaultReasoningEffort : null,
+      supportedReasoningEfforts: Array.isArray(model.supportedReasoningEfforts)
+        ? model.supportedReasoningEfforts
+          .map(option => ({
+            reasoningEffort: String(option?.reasoningEffort || "").trim(),
+            description: String(option?.description || "").trim(),
+          }))
+          .filter(option => option.reasoningEffort)
+        : [],
     }))
     .filter(model => model.model)
     .sort((a, b) =>
