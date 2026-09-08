@@ -1,7 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { DEFAULT_CODEX_MODEL, normalizeModel } = require("../electron/model-settings.cjs");
-const { normalizeCodexOverview } = require("../electron/codex-app-server.cjs");
+const { appServerArgs, normalizeCodexOverview } = require("../electron/codex-app-server.cjs");
+
+test("Codex overview uses the official stdio app-server transport", () => {
+  assert.deepEqual(appServerArgs(), ["app-server", "--listen", "stdio://"]);
+});
 
 test("Codex model setting accepts model slugs and rejects unsafe values", () => {
   assert.equal(normalizeModel(" gpt-5.6-sol "), "gpt-5.6-sol");
