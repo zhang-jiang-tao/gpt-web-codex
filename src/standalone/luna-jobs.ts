@@ -246,14 +246,16 @@ export class LunaJobManager {
       timedOut = true;
       terminateSoon();
     }, queued.timeoutMs);
-    const startupWindowMs = Math.min(this.startupEventTimeoutMs, queued.timeoutMs);
-    const startupTimer = setTimeout(() => {
-      if (firstJsonEventSeen) return;
-      startupStalled = true;
-      stderr = `${stderr}\nCodex started but produced no JSON events within ${startupWindowMs}ms`.trim();
-      persistProgress(true);
-      terminateSoon();
-    }, startupWindowMs);
+    const startupWindowMs = this.startupEventTimeoutMs;
+    const startupTimer = startupWindowMs < queued.timeoutMs
+      ? setTimeout(() => {
+        if (firstJsonEventSeen) return;
+        startupStalled = true;
+        stderr = `${stderr}\nCodex started but produced no JSON events within ${startupWindowMs}ms`.trim();
+        persistProgress(true);
+        terminateSoon();
+      }, startupWindowMs)
+      : undefined;
 
     const lines = createInterface({ input: child.stdout });
     lines.on("line", line => {
@@ -262,7 +264,7 @@ export class LunaJobManager {
         const event = JSON.parse(line) as Record<string, unknown>;
         if (!firstJsonEventSeen) {
           firstJsonEventSeen = true;
-          clearTimeout(startupTimer);
+          if (startupTimer) clearTimeout(startupTimer);
         }
         eventCount += 1;
         lastEventAt = new Date().toISOString();
@@ -292,7 +294,7 @@ export class LunaJobManager {
       child.once("close", code => resolve({ code }));
     });
     clearTimeout(timer);
-    clearTimeout(startupTimer);
+    if (startupTimer) clearTimeout(startupTimer);
     if (forceTimer) clearTimeout(forceTimer);
     lines.close();
     this.active.delete(jobId);
