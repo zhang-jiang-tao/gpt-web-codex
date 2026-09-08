@@ -8,6 +8,7 @@ export interface LauncherState {
   proxyEnabled: boolean;
   proxyUrl: string;
   defaultModel: string;
+  defaultReasoning: string;
   coreSetupComplete?: boolean;
   mcpSetupComplete?: boolean;
   mcpRuntimeInstalled?: boolean;
@@ -52,11 +53,19 @@ export interface CodexQuotaWindow {
   resetsAt: number | null;
 }
 
+export interface CodexReasoningOption {
+  reasoningEffort: string;
+  description: string;
+}
+
 export interface CodexModelOption {
   model: string;
   displayName: string;
   description: string;
+  hidden: boolean;
   isDefault: boolean;
+  defaultReasoningEffort: string | null;
+  supportedReasoningEfforts: CodexReasoningOption[];
 }
 
 export interface CodexOverview {
@@ -97,7 +106,6 @@ export interface CodexJobItem {
 export interface CodexJobsSnapshot {
   activeCount: number;
   active: CodexJobItem[];
-  recent: CodexJobItem[];
   updatedAt: string;
 }
 
@@ -132,7 +140,7 @@ export interface LauncherApi {
   setMcpStep(step: number): Promise<LauncherState>;
   setPreference(key: "keepRunningOnClose", value: boolean): Promise<LauncherState>;
   setProxySettings(input: { enabled: boolean; url: string }): Promise<LauncherState>;
-  setDefaultModel(model: string): Promise<LauncherState>;
+  setCodexDefaults(input: { model: string; reasoning: string }): Promise<LauncherState>;
   codexOverview(): Promise<CodexOverview>;
   codexJobs(): Promise<CodexJobsSnapshot>;
   logs(limit?: number): Promise<LogRecord[]>;
