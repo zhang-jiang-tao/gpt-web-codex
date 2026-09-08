@@ -114,7 +114,7 @@ export class LunaJobManager {
       wantsImagePreview: requestedImagePreview(prompt),
       imageArtifacts: [],
       cwd,
-      model: input.model?.trim() || "gpt-5.6-luna",
+      model: input.model?.trim() || process.env.WEBGPT_DEFAULT_MODEL?.trim() || "gpt-5.6-luna",
       reasoning: input.reasoning ?? "low",
       fast: input.fast ?? true,
       sandbox: input.sandbox ?? "workspace-write",
