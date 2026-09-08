@@ -7,6 +7,7 @@ export interface LauncherState {
   keepRunningOnClose: boolean;
   proxyEnabled: boolean;
   proxyUrl: string;
+  defaultModel: string;
   coreSetupComplete?: boolean;
   mcpSetupComplete?: boolean;
   mcpRuntimeInstalled?: boolean;
@@ -44,6 +45,32 @@ export type UpdateState =
   | { status: "available" | "downloading" | "installing"; version: string }
   | { status: "error"; message: string };
 
+export interface CodexQuotaWindow {
+  usedPercent: number;
+  remainingPercent: number;
+  windowDurationMins: number | null;
+  resetsAt: number | null;
+}
+
+export interface CodexModelOption {
+  model: string;
+  displayName: string;
+  description: string;
+  isDefault: boolean;
+}
+
+export interface CodexOverview {
+  planType: string | null;
+  limitId: string | null;
+  primary: CodexQuotaWindow | null;
+  secondary: CodexQuotaWindow | null;
+  credits: { hasCredits: boolean; unlimited: boolean; balance: string | null } | null;
+  resetCreditsAvailable: number | null;
+  ordinaryUsageAllowed: boolean | null;
+  models: CodexModelOption[];
+  warnings: string[];
+}
+
 export interface LauncherSnapshot {
   state: LauncherState;
   connectorName: string;
@@ -75,6 +102,8 @@ export interface LauncherApi {
   setMcpStep(step: number): Promise<LauncherState>;
   setPreference(key: "keepRunningOnClose", value: boolean): Promise<LauncherState>;
   setProxySettings(input: { enabled: boolean; url: string }): Promise<LauncherState>;
+  setDefaultModel(model: string): Promise<LauncherState>;
+  codexOverview(): Promise<CodexOverview>;
   logs(limit?: number): Promise<LogRecord[]>;
   openLogs(): Promise<string>;
   installUpdate(): Promise<boolean>;
