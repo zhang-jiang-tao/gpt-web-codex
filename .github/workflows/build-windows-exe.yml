@@ -37,7 +37,10 @@ jobs:
         run: bun x tsc --noEmit
 
       - name: Run widget regression tests
-        run: bun test --timeout 15000 tests/image-preview-ui.test.ts tests/standalone-luna.test.ts
+        shell: pwsh
+        run: |
+          bun test --timeout 15000 tests/image-preview-ui.test.ts
+          bun test --timeout 15000 tests/standalone-luna.test.ts --test-name-pattern "image"
 
       - name: Package Windows EXE
         run: bun run --cwd launcher package:win
