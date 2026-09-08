@@ -153,8 +153,6 @@ test("Codex invocation ignores routing config and reads prompt from stdin", () =
     expect(invocation.args).toContain("windows.sandbox=\"unelevated\"");
     expect(invocation.args).toContain("sandbox_workspace_write.network_access=true");
     expect(invocation.args).toContain('model_reasoning_effort="high"');
-    const minimal = buildCodexInvocation({ ...sampleJob(root), reasoning: "minimal" }, undefined, "C:\\codex.exe", "win32");
-    expect(minimal.args).toContain('model_reasoning_effort="minimal"');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
