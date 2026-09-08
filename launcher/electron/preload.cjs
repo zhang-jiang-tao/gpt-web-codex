@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("codexWebLauncher", {
   setProxySettings: (input) => ipcRenderer.invoke("launcher:set-proxy-settings", input),
   setDefaultModel: (model) => ipcRenderer.invoke("launcher:set-default-model", model),
   codexOverview: () => ipcRenderer.invoke("launcher:codex-overview"),
+  codexJobs: () => ipcRenderer.invoke("launcher:codex-jobs"),
   logs: (limit) => ipcRenderer.invoke("launcher:logs", limit),
   openLogs: () => ipcRenderer.invoke("launcher:open-logs"),
   installUpdate: () => ipcRenderer.invoke("launcher:update-install"),
