@@ -10,6 +10,8 @@ import type { LunaJob, StartLunaJobInput } from "./types";
 
 type SpawnCodex = (command: string, args: string[], cwd: string) => ChildProcessWithoutNullStreams;
 
+export const DEFAULT_STARTUP_EVENT_TIMEOUT_MS = 45_000;
+
 function defaultSpawn(command: string, args: string[], cwd: string): ChildProcessWithoutNullStreams {
   return spawn(command, args, {
     cwd, stdio: ["pipe", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32",
@@ -86,6 +88,7 @@ export class LunaJobManager {
     private readonly spawnCodex: SpawnCodex = defaultSpawn,
     private readonly logDir = defaultStandaloneLogDir(store.path),
     private readonly codexExecutable?: string,
+    private readonly startupEventTimeoutMs = DEFAULT_STARTUP_EVENT_TIMEOUT_MS,
   ) {
     this.store.recoverInterruptedJobs();
     this.pruneLogs();
@@ -177,8 +180,9 @@ export class LunaJobManager {
         && (first.eventCount <= 2 || /ECONN|connection|stream|socket|network|transport|spawn/i.test(first.error ?? ""));
       if (!transient) return;
       this.store.updateJob(jobId, {
-        status: "queued", error: undefined, finishedAt: undefined, terminalEvent: undefined,
-        finalMessage: undefined, pid: undefined, exitCode: undefined,
+        status: "queued", error: undefined, stderrTail: undefined, lastEventAt: undefined,
+        finishedAt: undefined, terminalEvent: undefined, finalMessage: undefined,
+        pid: undefined, exitCode: undefined, eventCount: 0,
       });
       await this.runAttempt(jobId);
     } finally {
@@ -200,32 +204,68 @@ export class LunaJobManager {
     const invocation = buildCodexInvocation(queued, binding.lunaSessionId, this.codexExecutable);
     const child = this.spawnCodex(invocation.command, invocation.args, queued.cwd);
     this.active.set(jobId, child);
-    this.store.updateJob(jobId, { status: "running", startedAt: new Date().toISOString(), pid: child.pid, attempts: queued.attempts + 1 });
+    this.store.updateJob(jobId, {
+      status: "running", startedAt: new Date().toISOString(), pid: child.pid,
+      attempts: queued.attempts + 1, eventCount: 0, lastEventAt: undefined, stderrTail: undefined,
+    });
     let terminalEvent: string | undefined;
     let finalMessage: string | undefined;
     let lunaSessionId = binding.lunaSessionId;
     let mutationSeen = false;
     let eventCount = 0;
+    let lastEventAt: string | undefined;
     const imageArtifacts = new Set<string>(queued.imageArtifacts ?? []);
     let stderr = "";
     let timedOut = false;
+    let startupStalled = false;
+    let firstJsonEventSeen = false;
+    let lastProgressPersistedAt = 0;
+
+    const persistProgress = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastProgressPersistedAt < 1_000) return;
+      lastProgressPersistedAt = now;
+      this.store.updateJob(jobId, {
+        eventCount,
+        lastEventAt,
+        stderrTail: stderr.trim() ? stderr.trim().slice(-2_000) : undefined,
+      });
+    };
 
     let forceTimer: ReturnType<typeof setTimeout> | undefined;
-    const timer = setTimeout(() => {
-      timedOut = true;
+    const terminateSoon = () => {
       child.kill("SIGTERM");
+      if (forceTimer) return;
       forceTimer = setTimeout(() => {
         try { terminateOwnedProcessTree(child); }
         catch (error) { stderr = `${stderr}\n${error instanceof Error ? error.message : String(error)}`.trim(); }
       }, 5_000);
       forceTimer.unref?.();
+    };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      terminateSoon();
     }, queued.timeoutMs);
+    const startupWindowMs = Math.min(this.startupEventTimeoutMs, queued.timeoutMs);
+    const startupTimer = setTimeout(() => {
+      if (firstJsonEventSeen) return;
+      startupStalled = true;
+      stderr = `${stderr}\nCodex started but produced no JSON events within ${startupWindowMs}ms`.trim();
+      persistProgress(true);
+      terminateSoon();
+    }, startupWindowMs);
+
     const lines = createInterface({ input: child.stdout });
     lines.on("line", line => {
       appendFileSync(queued.logPath, `${line}\n`, "utf8");
-      eventCount += 1;
       try {
         const event = JSON.parse(line) as Record<string, unknown>;
+        if (!firstJsonEventSeen) {
+          firstJsonEventSeen = true;
+          clearTimeout(startupTimer);
+        }
+        eventCount += 1;
+        lastEventAt = new Date().toISOString();
         if (event.type === "thread.started" && typeof event.thread_id === "string") {
           lunaSessionId = event.thread_id;
           this.store.bindLunaSession(queued.webSessionId, event.thread_id);
@@ -236,11 +276,15 @@ export class LunaJobManager {
         for (const path of eventImagePaths(event)) {
           if (existsSync(path) && statSync(path).isFile()) imageArtifacts.add(path);
         }
+        persistProgress(eventCount === 1);
       } catch {
-        // Preserve malformed output in the JSONL log; the terminal process result remains authoritative.
+        // Preserve malformed output in the JSONL log, but do not treat it as a valid Codex JSON event.
       }
     });
-    child.stderr.on("data", chunk => { stderr = `${stderr}${String(chunk)}`.slice(-16_000); });
+    child.stderr.on("data", chunk => {
+      stderr = `${stderr}${String(chunk)}`.slice(-16_000);
+      persistProgress();
+    });
     child.stdin.end(`${prompt}\n`);
 
     const outcome = await new Promise<{ code: number | null; error?: Error }>(resolve => {
@@ -248,23 +292,33 @@ export class LunaJobManager {
       child.once("close", code => resolve({ code }));
     });
     clearTimeout(timer);
+    clearTimeout(startupTimer);
     if (forceTimer) clearTimeout(forceTimer);
     lines.close();
     this.active.delete(jobId);
     const current = this.get(jobId);
     if (current.status === "cancelled") return;
-    const status = timedOut ? "timed_out" : outcome.code === 0 && terminalEvent === "turn.completed" ? "completed" : "failed";
+    const status = timedOut && !startupStalled
+      ? "timed_out"
+      : outcome.code === 0 && terminalEvent === "turn.completed"
+        ? "completed"
+        : "failed";
+    const failureMessage = startupStalled
+      ? `Codex started but produced no JSON events within ${startupWindowMs}ms`
+      : outcome.error?.message || (status === "failed" ? stderr.trim() || `Codex exited with ${outcome.code}` : undefined);
     this.store.updateJob(jobId, {
       status,
       finishedAt: new Date().toISOString(),
       exitCode: outcome.code,
-      terminalEvent: timedOut ? "timeout" : terminalEvent,
+      terminalEvent: startupStalled ? "startup_stalled" : timedOut ? "timeout" : terminalEvent,
       finalMessage,
       imageArtifacts: [...imageArtifacts],
       lunaSessionId,
       mutationSeen,
       eventCount,
-      error: outcome.error?.message || (status === "failed" ? stderr.trim() || `Codex exited with ${outcome.code}` : undefined),
+      lastEventAt,
+      stderrTail: stderr.trim() ? stderr.trim().slice(-2_000) : undefined,
+      error: failureMessage,
     });
   }
 }
