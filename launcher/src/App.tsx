@@ -27,14 +27,14 @@ const text = {
     keepRunning: "Keep MCP running when this window closes", language: "Language", status: "Status",
     proxy: "Network proxy", useProxy: "Use custom proxy", proxyUrl: "Proxy URL", saveProxy: "Save proxy settings",
     proxyHint: "Applied to MCP runtime and tunnel-client processes on the next connect/restart. When disabled, system environment proxy variables are inherited.",
-    codexModel: "Codex model", defaultModel: "Default model", saveModel: "Save model",
-    modelHint: "Available models come from the local Codex CLI. The saved default applies after the next MCP reconnect/restart; an existing conversation keeps its bound model when restored unless a model is explicitly supplied.",
+    codexModel: "Codex", defaultModel: "Default model", reasoning: "Reasoning level", saveModel: "Save Codex settings",
+    hiddenModel: "hidden", modelHint: "Models and reasoning levels come from the local Codex CLI. Hidden models are marked. Saved defaults apply after the next MCP reconnect/restart; restored conversations keep their bound settings unless explicitly changed.",
     quota: "Codex usage", refreshQuota: "Refresh", quotaUnavailable: "Usage data unavailable",
     remaining: "remaining", resets: "Resets", credits: "Credits", unlimited: "Unlimited", plan: "Plan",
     connectorHint: "Create or enable this connector in ChatGPT with Tunnel transport and Authentication None.",
     jobsTitle: "Codex jobs", jobsSubtitle: "Active and recent Luna executions started by GPT Web Codex.",
-    activeJobs: "Active", recentJobs: "Recent", noActiveJobs: "No Codex jobs are running.",
-    noRecentJobs: "No recent Codex jobs.", work: "Work", workspace: "Workspace", model: "Model",
+    activeJobs: "Active", noActiveJobs: "No Codex jobs are running.",
+    work: "Work", workspace: "Workspace", model: "Model",
     duration: "Duration", pid: "PID", diagnostics: "Diagnostics", events: "Events", attempts: "Attempts",
     lastEvent: "Last event", noEvent: "No event", legacyWork: "Work summary was not recorded by this older job.",
     queued: "Queued", running: "Running", completed: "Completed", failed: "Failed", timed_out: "Timed out", cancelled: "Cancelled",
@@ -51,14 +51,14 @@ const text = {
     keepRunning: "关闭窗口后继续运行 MCP", language: "语言", status: "状态",
     proxy: "网络代理", useProxy: "使用自定义代理", proxyUrl: "代理地址", saveProxy: "保存代理设置",
     proxyHint: "下一次连接/重启时应用到 MCP Runtime 和 tunnel-client；关闭时继续继承系统环境代理变量。",
-    codexModel: "Codex 模型", defaultModel: "默认模型", saveModel: "保存模型",
-    modelHint: "可选模型来自本机 Codex CLI。保存后在下一次 MCP 重连/重启时作为默认模型；已有会话恢复时会保留已绑定模型，除非显式指定新模型。",
+    codexModel: "Codex", defaultModel: "默认模型", reasoning: "推理级别", saveModel: "保存 Codex 设置",
+    hiddenModel: "隐藏", modelHint: "模型和推理级别来自本机 Codex CLI，隐藏模型会明确标记。保存后在下一次 MCP 重连/重启时作为默认值；已有会话恢复时保留已绑定设置，除非显式变更。",
     quota: "Codex 额度", refreshQuota: "刷新", quotaUnavailable: "额度数据不可用",
     remaining: "剩余", resets: "重置", credits: "Credits", unlimited: "无限", plan: "套餐",
     connectorHint: "在 ChatGPT 中创建或启用此连接器，连接方式选择隧道，身份验证选择无。",
     jobsTitle: "Codex 任务", jobsSubtitle: "显示 GPT Web Codex 启动的正在运行和最近 Luna 任务。",
-    activeJobs: "正在运行", recentJobs: "最近任务", noActiveJobs: "当前没有正在运行的 Codex 任务。",
-    noRecentJobs: "暂无最近任务。", work: "工作", workspace: "工作区", model: "模型",
+    activeJobs: "正在运行", noActiveJobs: "当前没有正在运行的 Codex 任务。",
+    work: "工作", workspace: "工作区", model: "模型",
     duration: "运行时间", pid: "PID", diagnostics: "诊断", events: "事件", attempts: "尝试",
     lastEvent: "最后事件", noEvent: "无事件", legacyWork: "该历史任务创建于功能加入前，未记录工作摘要。",
     queued: "排队中", running: "运行中", completed: "已完成", failed: "失败", timed_out: "超时", cancelled: "已取消",
@@ -218,7 +218,6 @@ function JobsPanel({ copy }: { copy: Copy }) {
       </div>
       {error ? <div className="pure-card pure-jobs-error">{error}</div> : null}
       <JobTable copy={copy} title={copy.activeJobs} jobs={jobs?.active ?? []} empty={copy.noActiveJobs} />
-      <JobTable copy={copy} title={copy.recentJobs} jobs={jobs?.recent ?? []} empty={copy.noRecentJobs} />
     </section>
   );
 }
@@ -272,13 +271,15 @@ function Settings({ copy, language, snapshot, setError, updateState }: { copy: t
   const [proxyEnabled, setProxyEnabled] = useState(snapshot.state.proxyEnabled);
   const [proxyUrl, setProxyUrl] = useState(snapshot.state.proxyUrl);
   const [defaultModel, setDefaultModel] = useState(snapshot.state.defaultModel);
+  const [defaultReasoning, setDefaultReasoning] = useState(snapshot.state.defaultReasoning);
   const [overview, setOverview] = useState<CodexOverview | null>(null);
   const [overviewError, setOverviewError] = useState<string | null>(null);
   useEffect(() => {
     setProxyEnabled(snapshot.state.proxyEnabled);
     setProxyUrl(snapshot.state.proxyUrl);
     setDefaultModel(snapshot.state.defaultModel);
-  }, [snapshot.state.proxyEnabled, snapshot.state.proxyUrl, snapshot.state.defaultModel]);
+    setDefaultReasoning(snapshot.state.defaultReasoning);
+  }, [snapshot.state.proxyEnabled, snapshot.state.proxyUrl, snapshot.state.defaultModel, snapshot.state.defaultReasoning]);
   useEffect(() => {
     let cancelled = false;
     void api!.codexOverview().then((value) => {
@@ -288,11 +289,27 @@ function Settings({ copy, language, snapshot, setError, updateState }: { copy: t
     });
     return () => { cancelled = true; };
   }, []);
+  const selectedModel = overview?.models.find((model) => model.model === defaultModel) ?? null;
+  const fallbackReasoning = ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"];
+  const reasoningOptions = selectedModel?.supportedReasoningEfforts.length
+    ? selectedModel.supportedReasoningEfforts
+    : fallbackReasoning.map((reasoningEffort) => ({ reasoningEffort, description: "" }));
   const changeLanguage = async (next: Language) => { try { updateState(await api!.setLanguage(next)); } catch (cause) { setError(messageOf(cause)); } };
   const setKeepRunning = async (value: boolean) => { try { updateState(await api!.setPreference("keepRunningOnClose", value)); } catch (cause) { setError(messageOf(cause)); } };
-  const saveModel = async () => {
+  const changeModel = (model: string) => {
+    setDefaultModel(model);
+    const nextModel = overview?.models.find((option) => option.model === model);
+    if (!nextModel?.supportedReasoningEfforts.length) return;
+    const supported = nextModel.supportedReasoningEfforts.map((option) => option.reasoningEffort);
+    if (supported.includes(defaultReasoning)) return;
+    const preferred = nextModel.defaultReasoningEffort && supported.includes(nextModel.defaultReasoningEffort)
+      ? nextModel.defaultReasoningEffort
+      : supported[0];
+    if (preferred) setDefaultReasoning(preferred);
+  };
+  const saveCodex = async () => {
     setError(null);
-    try { updateState(await api!.setDefaultModel(defaultModel)); }
+    try { updateState(await api!.setCodexDefaults({ model: defaultModel, reasoning: defaultReasoning })); }
     catch (cause) { setError(messageOf(cause)); }
   };
   const saveProxy = async () => {
@@ -300,7 +317,9 @@ function Settings({ copy, language, snapshot, setError, updateState }: { copy: t
     try { updateState(await api!.setProxySettings({ enabled: proxyEnabled, url: proxyUrl })); }
     catch (cause) { setError(messageOf(cause)); }
   };
-  return <section><PageHeader title={copy.settings} subtitle="GPT Web Codex" /><div className="pure-card pure-settings"><label>{copy.language}<select value={language} onChange={(event) => void changeLanguage(event.target.value as Language)}><option value="zh-CN">简体中文</option><option value="en">English</option></select></label><label className="pure-check"><input checked={snapshot.state.keepRunningOnClose} type="checkbox" onChange={(event) => void setKeepRunning(event.target.checked)} />{copy.keepRunning}</label><div className="pure-setting-group"><strong>{copy.codexModel}</strong><label>{copy.defaultModel}<input list="codex-model-options" value={defaultModel} onChange={(event) => setDefaultModel(event.target.value)} /></label><datalist id="codex-model-options">{overview?.models.map((model) => <option key={model.model} value={model.model}>{model.displayName}</option>)}</datalist><small>{copy.modelHint}</small>{overviewError ? <small>{overviewError}</small> : null}<button onClick={() => void saveModel()}>{copy.saveModel}</button></div><div className="pure-setting-group"><strong>{copy.proxy}</strong><label className="pure-check"><input checked={proxyEnabled} type="checkbox" onChange={(event) => setProxyEnabled(event.target.checked)} />{copy.useProxy}</label><label>{copy.proxyUrl}<input placeholder="http://127.0.0.1:10808" value={proxyUrl} onChange={(event) => setProxyUrl(event.target.value)} /></label><small>{copy.proxyHint}</small><button onClick={() => void saveProxy()}>{copy.saveProxy}</button></div><button onClick={() => void api!.openLogs()}>{copy.openLogs}</button></div></section>;
+  const models = overview?.models ?? [];
+  const currentModelMissing = defaultModel && !models.some((model) => model.model === defaultModel);
+  return <section><PageHeader title={copy.settings} subtitle="GPT Web Codex" /><div className="pure-card pure-settings"><label>{copy.language}<select value={language} onChange={(event) => void changeLanguage(event.target.value as Language)}><option value="zh-CN">简体中文</option><option value="en">English</option></select></label><label className="pure-check"><input checked={snapshot.state.keepRunningOnClose} type="checkbox" onChange={(event) => void setKeepRunning(event.target.checked)} />{copy.keepRunning}</label><div className="pure-setting-group"><strong>{copy.codexModel}</strong><label>{copy.defaultModel}{models.length ? <select value={defaultModel} onChange={(event) => changeModel(event.target.value)}>{currentModelMissing ? <option value={defaultModel}>{defaultModel}</option> : null}{models.map((model) => <option key={model.model} value={model.model}>{model.displayName}{model.hidden ? ` (${copy.hiddenModel})` : ""}</option>)}</select> : <input value={defaultModel} onChange={(event) => setDefaultModel(event.target.value)} />}</label><label>{copy.reasoning}<select value={defaultReasoning} onChange={(event) => setDefaultReasoning(event.target.value)}>{reasoningOptions.map((option) => <option key={option.reasoningEffort} value={option.reasoningEffort} title={option.description}>{reasoningLabel(option.reasoningEffort)}</option>)}</select></label><small>{copy.modelHint}</small>{selectedModel?.description ? <small>{selectedModel.description}</small> : null}{overviewError ? <small>{overviewError}</small> : null}<button onClick={() => void saveCodex()}>{copy.saveModel}</button></div><div className="pure-setting-group"><strong>{copy.proxy}</strong><label className="pure-check"><input checked={proxyEnabled} type="checkbox" onChange={(event) => setProxyEnabled(event.target.checked)} />{copy.useProxy}</label><label>{copy.proxyUrl}<input placeholder="http://127.0.0.1:10808" value={proxyUrl} onChange={(event) => setProxyUrl(event.target.value)} /></label><small>{copy.proxyHint}</small><button onClick={() => void saveProxy()}>{copy.saveProxy}</button></div><button onClick={() => void api!.openLogs()}>{copy.openLogs}</button></div></section>;
 }
 
 type Copy = typeof text.en | typeof text["zh-CN"];
@@ -332,6 +351,13 @@ function formatDuration(value: number | null) {
     : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 function jobStatusLabel(copy: Copy, status: CodexJobItem["status"]) { return copy[status]; }
+function reasoningLabel(value: string) {
+  const labels: Record<string, string> = {
+    none: "None", minimal: "Minimal", low: "Low", medium: "Medium",
+    high: "High", xhigh: "Extra High", max: "Max", ultra: "Ultra",
+  };
+  return labels[value] ?? value;
+}
 function formatEventTime(value: string) {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? new Date(parsed).toLocaleTimeString() : "—";
