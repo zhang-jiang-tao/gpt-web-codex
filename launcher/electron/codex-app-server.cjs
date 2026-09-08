@@ -78,14 +78,19 @@ function selectCodexRateLimit(result) {
 function normalizeModels(result) {
   const data = Array.isArray(result?.data) ? result.data : [];
   return data
-    .filter(model => model && typeof model === "object" && model.hidden !== true)
+    .filter(model => model && typeof model === "object")
     .map(model => ({
       model: String(model.model || model.id || "").trim(),
       displayName: String(model.displayName || model.model || model.id || "").trim(),
       description: String(model.description || "").trim(),
+      hidden: model.hidden === true,
       isDefault: model.isDefault === true,
     }))
-    .filter(model => model.model);
+    .filter(model => model.model)
+    .sort((a, b) =>
+      Number(b.isDefault) - Number(a.isDefault)
+      || Number(a.hidden) - Number(b.hidden)
+      || a.displayName.localeCompare(b.displayName));
 }
 
 function normalizeCodexOverview(rateLimitsResult, modelListResult) {
@@ -154,7 +159,7 @@ function appServerRequest(executable, env, timeoutMs = 12_000, clientVersion = "
 
     function startReads() {
       write({ method: "account/rateLimits/read", id: 2 });
-      write({ method: "model/list", id: 3, params: { limit: 100, includeHidden: false } });
+      write({ method: "model/list", id: 3, params: { limit: 100, includeHidden: true } });
     }
 
     function handleMessage(message) {
