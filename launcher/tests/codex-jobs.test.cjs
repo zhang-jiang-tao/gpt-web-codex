@@ -34,8 +34,7 @@ test("Codex job list puts active jobs first and preserves bounded work summaries
   assert.equal(snapshot.active[0].lastEventAt, "2026-09-08T09:59:30.000Z");
   assert.equal(snapshot.active[0].terminalEvent, "item.completed");
   assert.equal(snapshot.active[0].stderrTail, "diagnostic tail");
-  assert.equal(snapshot.recent[0].id, "done");
-  assert.equal(snapshot.recent[0].durationMs, 60_000);
+  assert.equal(Object.hasOwn(snapshot, "recent"), false);
 });
 
 test("Codex job reader tolerates missing state and old jobs without work summaries", () => {
@@ -44,7 +43,6 @@ test("Codex job reader tolerates missing state and old jobs without work summari
     assert.deepEqual(readCodexJobs(root, { now: 0 }), {
       activeCount: 0,
       active: [],
-      recent: [],
       updatedAt: "1970-01-01T00:00:00.000Z",
     });
     fs.mkdirSync(path.join(root, "standalone"), { recursive: true });
@@ -58,7 +56,8 @@ test("Codex job reader tolerates missing state and old jobs without work summari
       },
     }));
     const snapshot = readCodexJobs(root, { now: Date.parse("2026-09-08T10:00:00.000Z") });
-    assert.equal(snapshot.recent[0].workSummary, null);
+    assert.equal(snapshot.activeCount, 0);
+    assert.equal(Object.hasOwn(snapshot, "recent"), false);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
