@@ -342,6 +342,7 @@ function registerIpc({ logger, stateStore }) {
   });
   handle("launcher:set-codex-defaults", (_event, input) => {
     const state = stateStore.update({
+      codexDefaultsEnabled: input?.enabled === true,
       defaultModel: normalizeModel(input?.model),
       defaultReasoning: normalizeReasoning(input?.reasoning),
     });
@@ -437,11 +438,18 @@ async function start() {
   const stateStore = createStateStore(path.join(app.getPath("userData"), "launcher-state.json"));
   const environmentProvider = () => {
     const state = stateStore.read();
-    return {
+    const env = {
       ...buildChildEnvironment(state),
-      WEBGPT_DEFAULT_MODEL: state.defaultModel,
-      WEBGPT_DEFAULT_REASONING: state.defaultReasoning,
+      WEBGPT_CODEX_DEFAULTS_ENABLED: state.codexDefaultsEnabled ? "1" : "0",
     };
+    if (state.codexDefaultsEnabled) {
+      env.WEBGPT_DEFAULT_MODEL = state.defaultModel;
+      env.WEBGPT_DEFAULT_REASONING = state.defaultReasoning;
+    } else {
+      delete env.WEBGPT_DEFAULT_MODEL;
+      delete env.WEBGPT_DEFAULT_REASONING;
+    }
+    return env;
   };
   // Autostart belonged to the retired Codex routing bridge. Remove any legacy
   // registration once, without exposing a replacement preference.
