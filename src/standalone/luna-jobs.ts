@@ -300,11 +300,13 @@ export class LunaJobManager {
     this.active.delete(jobId);
     const current = this.get(jobId);
     if (current.status === "cancelled") return;
-    const status = timedOut && !startupStalled
-      ? "timed_out"
-      : outcome.code === 0 && terminalEvent === "turn.completed"
-        ? "completed"
-        : "failed";
+    const status = startupStalled
+      ? "failed"
+      : timedOut
+        ? "timed_out"
+        : outcome.code === 0 && terminalEvent === "turn.completed"
+          ? "completed"
+          : "failed";
     const failureMessage = startupStalled
       ? `Codex started but produced no JSON events within ${startupWindowMs}ms`
       : outcome.error?.message || (status === "failed" ? stderr.trim() || `Codex exited with ${outcome.code}` : undefined);
