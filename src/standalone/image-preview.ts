@@ -54,6 +54,7 @@ export const IMAGE_PREVIEW_HTML = String.raw`<!doctype html>
       let restoringPreviewId = null;
       let pendingRestoreId = null;
       let lastPreviewId = null;
+      let lastPersistedPreviewId = null;
       let pendingPreviewState = null;
       const storageNamespace = "__WEBGPT_PREVIEW_NAMESPACE__";
       const conversationKey = (() => {
@@ -171,7 +172,8 @@ export const IMAGE_PREVIEW_HTML = String.raw`<!doctype html>
         } catch { return ledger[0] || null; }
       };
       const persistPreviewState = (image) => {
-        if (!image?.preview_id) return;
+        if (!image?.preview_id || image.preview_id === lastPersistedPreviewId) return;
+        lastPersistedPreviewId = image.preview_id;
         pendingPreviewState = {
           webgpt_image_preview: {
             preview_id: image.preview_id,
