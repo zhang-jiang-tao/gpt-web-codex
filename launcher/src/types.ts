@@ -7,6 +7,7 @@ export interface LauncherState {
   keepRunningOnClose: boolean;
   proxyEnabled: boolean;
   proxyUrl: string;
+  codexDefaultsEnabled: boolean;
   defaultModel: string;
   defaultReasoning: string;
   coreSetupComplete?: boolean;
@@ -140,7 +141,7 @@ export interface LauncherApi {
   setMcpStep(step: number): Promise<LauncherState>;
   setPreference(key: "keepRunningOnClose", value: boolean): Promise<LauncherState>;
   setProxySettings(input: { enabled: boolean; url: string }): Promise<LauncherState>;
-  setCodexDefaults(input: { model: string; reasoning: string }): Promise<LauncherState>;
+  setCodexDefaults(input: { enabled: boolean; model: string; reasoning: string }): Promise<LauncherState>;
   codexOverview(): Promise<CodexOverview>;
   codexJobs(): Promise<CodexJobsSnapshot>;
   logs(limit?: number): Promise<LogRecord[]>;
