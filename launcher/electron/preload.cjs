@@ -16,7 +16,6 @@ contextBridge.exposeInMainWorld("codexWebLauncher", {
   setMcpStep: (step) => ipcRenderer.invoke("launcher:set-mcp-step", step),
   setPreference: (key, value) => ipcRenderer.invoke("launcher:set-preference", key, value),
   setProxySettings: (input) => ipcRenderer.invoke("launcher:set-proxy-settings", input),
-  setCodexDefaults: (input) => ipcRenderer.invoke("launcher:set-codex-defaults", input),
   codexOverview: () => ipcRenderer.invoke("launcher:codex-overview"),
   codexJobs: () => ipcRenderer.invoke("launcher:codex-jobs"),
   logs: (limit) => ipcRenderer.invoke("launcher:logs", limit),
