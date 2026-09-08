@@ -26,7 +26,7 @@ const text = {
     proxy: "Network proxy", useProxy: "Use custom proxy", proxyUrl: "Proxy URL", saveProxy: "Save proxy settings",
     proxyHint: "Applied to MCP runtime and tunnel-client processes on the next connect/restart. When disabled, system environment proxy variables are inherited.",
     codexModel: "Codex model", defaultModel: "Default model", saveModel: "Save model",
-    modelHint: "Available models come from the local Codex CLI. The saved default applies after the next MCP reconnect/restart; initialized conversations keep their current model.",
+    modelHint: "Available models come from the local Codex CLI. The saved default applies after the next MCP reconnect/restart; an existing conversation keeps its bound model when restored unless a model is explicitly supplied.",
     quota: "Codex usage", refreshQuota: "Refresh", quotaUnavailable: "Usage data unavailable",
     remaining: "remaining", resets: "Resets", credits: "Credits", unlimited: "Unlimited", plan: "Plan",
     connectorHint: "Create or enable this connector in ChatGPT with Tunnel transport and Authentication None.",
@@ -44,7 +44,7 @@ const text = {
     proxy: "网络代理", useProxy: "使用自定义代理", proxyUrl: "代理地址", saveProxy: "保存代理设置",
     proxyHint: "下一次连接/重启时应用到 MCP Runtime 和 tunnel-client；关闭时继续继承系统环境代理变量。",
     codexModel: "Codex 模型", defaultModel: "默认模型", saveModel: "保存模型",
-    modelHint: "可选模型来自本机 Codex CLI。保存后在下一次 MCP 重连/重启时作为新会话默认模型；已初始化会话继续使用原模型。",
+    modelHint: "可选模型来自本机 Codex CLI。保存后在下一次 MCP 重连/重启时作为默认模型；已有会话恢复时会保留已绑定模型，除非显式指定新模型。",
     quota: "Codex 额度", refreshQuota: "刷新", quotaUnavailable: "额度数据不可用",
     remaining: "剩余", resets: "重置", credits: "Credits", unlimited: "无限", plan: "套餐",
     connectorHint: "在 ChatGPT 中创建或启用此连接器，连接方式选择隧道，身份验证选择无。",
@@ -250,7 +250,7 @@ function QuotaPanel({ copy, overview, loading, error, onRefresh }: { copy: Copy;
 }
 function quotaWindowLabel(minutes: number | null) {
   if (minutes === 300) return "5h";
-  if (minutes === 10_080) return "Weekly";
+  if (minutes === 10_080) return "7d";
   if (!minutes) return "Limit";
   if (minutes % 1_440 === 0) return `${minutes / 1_440}d`;
   if (minutes % 60 === 0) return `${minutes / 60}h`;
