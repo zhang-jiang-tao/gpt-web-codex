@@ -75,34 +75,7 @@ function selectCodexRateLimit(result) {
   return fallback && typeof fallback === "object" ? fallback : null;
 }
 
-function normalizeModels(result) {
-  const data = Array.isArray(result?.data) ? result.data : [];
-  return data
-    .filter(model => model && typeof model === "object")
-    .map(model => ({
-      model: String(model.model || model.id || "").trim(),
-      displayName: String(model.displayName || model.model || model.id || "").trim(),
-      description: String(model.description || "").trim(),
-      hidden: model.hidden === true,
-      isDefault: model.isDefault === true,
-      defaultReasoningEffort: typeof model.defaultReasoningEffort === "string" ? model.defaultReasoningEffort : null,
-      supportedReasoningEfforts: Array.isArray(model.supportedReasoningEfforts)
-        ? model.supportedReasoningEfforts
-          .map(option => ({
-            reasoningEffort: String(option?.reasoningEffort || "").trim(),
-            description: String(option?.description || "").trim(),
-          }))
-          .filter(option => option.reasoningEffort)
-        : [],
-    }))
-    .filter(model => model.model)
-    .sort((a, b) =>
-      Number(b.isDefault) - Number(a.isDefault)
-      || Number(a.hidden) - Number(b.hidden)
-      || a.displayName.localeCompare(b.displayName));
-}
-
-function normalizeCodexOverview(rateLimitsResult, modelListResult) {
+function normalizeCodexOverview(rateLimitsResult) {
   const snapshot = selectCodexRateLimit(rateLimitsResult);
   const credits = snapshot?.credits && typeof snapshot.credits === "object"
     ? {
@@ -124,7 +97,6 @@ function normalizeCodexOverview(rateLimitsResult, modelListResult) {
     ordinaryUsageAllowed: typeof rateLimitsResult?.ordinaryUsageAllowed === "boolean"
       ? rateLimitsResult.ordinaryUsageAllowed
       : null,
-    models: normalizeModels(modelListResult),
   };
 }
 
@@ -144,8 +116,6 @@ function appServerRequest(executable, env, timeoutMs = 12_000, clientVersion = "
     let stderr = "";
     let settled = false;
     let initializeDone = false;
-    const results = {};
-    const warnings = [];
     const timer = setTimeout(() => finish(new Error("Codex app-server request timed out")), timeoutMs);
 
     function cleanup() {
@@ -166,31 +136,18 @@ function appServerRequest(executable, env, timeoutMs = 12_000, clientVersion = "
       child.stdin.write(`${JSON.stringify(message)}\n`);
     }
 
-    function startReads() {
-      write({ method: "account/rateLimits/read", id: 2 });
-      write({ method: "model/list", id: 3, params: { limit: 100, includeHidden: true } });
-    }
-
     function handleMessage(message) {
       if (!message || typeof message !== "object") return;
       if (message.id === 1) {
         if (message.error) return finish(new Error(message.error.message || "Codex app-server initialization failed"));
         initializeDone = true;
         write({ method: "initialized" });
-        startReads();
+        write({ method: "account/rateLimits/read", id: 2 });
         return;
       }
       if (message.id === 2) {
-        if (message.error) warnings.push(`rate limits: ${message.error.message || "request failed"}`);
-        else results.rateLimits = message.result;
-      }
-      if (message.id === 3) {
-        if (message.error) warnings.push(`models: ${message.error.message || "request failed"}`);
-        else results.models = message.result;
-      }
-      if ((Object.hasOwn(results, "rateLimits") || warnings.some(value => value.startsWith("rate limits:")))
-        && (Object.hasOwn(results, "models") || warnings.some(value => value.startsWith("models:")))) {
-        finish(null, { ...normalizeCodexOverview(results.rateLimits, results.models), warnings });
+        if (message.error) return finish(new Error(message.error.message || "Codex rate-limit request failed"));
+        finish(null, normalizeCodexOverview(message.result));
       }
     }
 
