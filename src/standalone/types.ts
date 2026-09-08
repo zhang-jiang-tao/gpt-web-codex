@@ -21,6 +21,7 @@ export interface LunaJob {
   id: string;
   webSessionId: string;
   promptChars: number;
+  workSummary?: string;
   wantsImagePreview?: boolean;
   imageArtifacts?: string[];
   cwd: string;
