@@ -346,6 +346,7 @@ function registerIpc({ logger, stateStore }) {
   });
   handle("launcher:codex-overview", () => readCodexOverview({
     env: buildChildEnvironment(stateStore.read()),
+    clientVersion: app.getVersion(),
   }));
   handle("launcher:logs", (_event, limit) => logger.recent(limit));
   handle("launcher:open-logs", async () => {
