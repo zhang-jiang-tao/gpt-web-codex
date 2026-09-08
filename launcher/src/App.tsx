@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import type {
+  CodexJobItem,
+  CodexJobsSnapshot,
   CodexOverview,
   CodexQuotaWindow,
   DoctorReport,
@@ -15,7 +17,7 @@ const api = window.codexWebLauncher;
 
 const text = {
   en: {
-    dashboard: "Overview", mcp: "MCP", activity: "Activity", settings: "Settings",
+    dashboard: "Overview", jobs: "Codex jobs", mcp: "MCP", activity: "Activity", settings: "Settings",
     title: "Pure MCP launcher", subtitle: "ChatGPT runs in your normal browser. This app only keeps the local Luna MCP tunnel healthy.",
     ready: "Runtime ready", setup: "Setup required", connector: "Connector", runtime: "Local runtime",
     noBrowser: "No embedded browser", noBrowserDetail: "No ChatGPT login, browser profile, debugging port, or conversation UI is created.",
@@ -30,10 +32,15 @@ const text = {
     quota: "Codex usage", refreshQuota: "Refresh", quotaUnavailable: "Usage data unavailable",
     remaining: "remaining", resets: "Resets", credits: "Credits", unlimited: "Unlimited", plan: "Plan",
     connectorHint: "Create or enable this connector in ChatGPT with Tunnel transport and Authentication None.",
+    jobsTitle: "Codex jobs", jobsSubtitle: "Active and recent Luna executions started by GPT Web Codex.",
+    activeJobs: "Active", recentJobs: "Recent", noActiveJobs: "No Codex jobs are running.",
+    noRecentJobs: "No recent Codex jobs.", work: "Work", workspace: "Workspace", model: "Model",
+    duration: "Duration", pid: "PID", legacyWork: "Work summary was not recorded by this older job.",
+    queued: "Queued", running: "Running", completed: "Completed", failed: "Failed", timed_out: "Timed out", cancelled: "Cancelled",
     refresh: "Refresh", checking: "Working…",
   },
   "zh-CN": {
-    dashboard: "概览", mcp: "MCP", activity: "活动", settings: "设置",
+    dashboard: "概览", jobs: "Codex 任务", mcp: "MCP", activity: "活动", settings: "设置",
     title: "纯 MCP 启动器", subtitle: "ChatGPT 在你的正常浏览器中运行。本程序只负责保持本机 Luna MCP 隧道可用。",
     ready: "运行时已就绪", setup: "需要配置", connector: "连接器", runtime: "本地运行时",
     noBrowser: "没有内嵌浏览器", noBrowserDetail: "不会创建 ChatGPT 登录状态、浏览器配置、调试端口或会话界面。",
@@ -48,6 +55,11 @@ const text = {
     quota: "Codex 额度", refreshQuota: "刷新", quotaUnavailable: "额度数据不可用",
     remaining: "剩余", resets: "重置", credits: "Credits", unlimited: "无限", plan: "套餐",
     connectorHint: "在 ChatGPT 中创建或启用此连接器，连接方式选择隧道，身份验证选择无。",
+    jobsTitle: "Codex 任务", jobsSubtitle: "显示 GPT Web Codex 启动的正在运行和最近 Luna 任务。",
+    activeJobs: "正在运行", recentJobs: "最近任务", noActiveJobs: "当前没有正在运行的 Codex 任务。",
+    noRecentJobs: "暂无最近任务。", work: "工作", workspace: "工作区", model: "模型",
+    duration: "运行时间", pid: "PID", legacyWork: "该历史任务创建于功能加入前，未记录工作摘要。",
+    queued: "排队中", running: "运行中", completed: "已完成", failed: "失败", timed_out: "超时", cancelled: "已取消",
     refresh: "刷新", checking: "处理中…",
   },
 } as const;
@@ -100,9 +112,9 @@ export function App() {
       <div className="pure-shell">
         <aside className="pure-sidebar">
           <div className="pure-sidebar-heading">MCP CONTROL</div>
-          {(["dashboard", "mcp", "activity", "settings"] as Surface[]).map((item) => (
+          {(["dashboard", "jobs", "mcp", "activity", "settings"] as Surface[]).map((item) => (
             <button className={surface === item ? "active" : ""} key={item} onClick={() => setSurface(item)}>
-              <span>{item === "dashboard" ? "◉" : item === "mcp" ? "⌘" : item === "activity" ? "≋" : "⚙"}</span>
+              <span>{item === "dashboard" ? "◉" : item === "jobs" ? "▶" : item === "mcp" ? "⌘" : item === "activity" ? "≋" : "⚙"}</span>
               {copy[item]}
             </button>
           ))}
@@ -113,6 +125,7 @@ export function App() {
         </aside>
         <main className="pure-main">
           {surface === "dashboard" ? <Dashboard copy={copy} snapshot={snapshot} busy={busy} setError={setError} updateState={updateState} /> : null}
+          {surface === "jobs" ? <JobsPanel copy={copy} /> : null}
           {surface === "mcp" ? <McpPanel copy={copy} snapshot={snapshot} busy={busy} setError={setError} updateState={updateState} /> : null}
           {surface === "activity" ? <Activity copy={copy} logs={logs} /> : null}
           {surface === "settings" ? <Settings copy={copy} language={language} snapshot={snapshot} setError={setError} updateState={updateState} /> : null}
@@ -161,6 +174,55 @@ function Dashboard({ copy, snapshot, busy, setError, updateState }: PanelProps) 
       {report ? <DoctorResults report={report} /> : null}
     </section>
   );
+}
+
+function JobsPanel({ copy }: { copy: Copy }) {
+  const [jobs, setJobs] = useState<CodexJobsSnapshot | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const refreshJobs = async () => {
+    try {
+      setJobs(await api!.codexJobs());
+      setError(null);
+    } catch (cause) {
+      setError(messageOf(cause));
+    }
+  };
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const next = await api!.codexJobs();
+        if (!cancelled) {
+          setJobs(next);
+          setError(null);
+        }
+      } catch (cause) {
+        if (!cancelled) setError(messageOf(cause));
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 2_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+  return (
+    <section>
+      <PageHeader title={copy.jobsTitle} subtitle={copy.jobsSubtitle} />
+      <div className="pure-jobs-head">
+        <strong>{copy.activeJobs}: {jobs?.activeCount ?? 0}</strong>
+        <button onClick={() => void refreshJobs()}>{copy.refresh}</button>
+      </div>
+      {error ? <div className="pure-card pure-jobs-error">{error}</div> : null}
+      <JobTable copy={copy} title={copy.activeJobs} jobs={jobs?.active ?? []} empty={copy.noActiveJobs} />
+      <JobTable copy={copy} title={copy.recentJobs} jobs={jobs?.recent ?? []} empty={copy.noRecentJobs} />
+    </section>
+  );
+}
+
+function JobTable({ copy, title, jobs, empty }: { copy: Copy; title: string; jobs: CodexJobItem[]; empty: string }) {
+  return <div className="pure-card pure-jobs-card"><h3>{title}</h3>{jobs.length ? <div className="pure-job-table"><div className="pure-job-row pure-job-header"><span>{copy.status}</span><span>{copy.work}</span><span>{copy.workspace}</span><span>{copy.model}</span><span>{copy.duration}</span><span>{copy.pid}</span></div>{jobs.map((job) => <div className="pure-job-row" key={job.id}><span><span className={`pure-job-status ${job.status}`}>{jobStatusLabel(copy, job.status)}</span></span><span className="pure-job-work" title={job.workSummary ?? copy.legacyWork}>{job.workSummary ?? copy.legacyWork}</span><span className="pure-job-workspace" title={job.workspacePath}>{job.workspacePath}</span><span><strong>{job.model ?? "—"}</strong>{job.reasoning ? <small>{job.reasoning}</small> : null}</span><span>{formatDuration(job.durationMs)}</span><span>{job.pid ?? "—"}</span></div>)}</div> : <div className="pure-empty">{empty}</div>}</div>;
 }
 
 function McpPanel({ copy, snapshot, busy, setError, updateState }: PanelProps) {
@@ -257,5 +319,16 @@ function quotaWindowLabel(minutes: number | null) {
   return `${minutes}m`;
 }
 function formatReset(epochSeconds: number) { return new Date(epochSeconds * 1000).toLocaleString(); }
+function formatDuration(value: number | null) {
+  if (value === null) return "—";
+  const totalSeconds = Math.max(0, Math.floor(value / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return hours > 0
+    ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+    : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+function jobStatusLabel(copy: Copy, status: CodexJobItem["status"]) { return copy[status]; }
 function messageOf(value: unknown) { return value instanceof Error ? value.message : String(value); }
 function detail(value: Record<string, unknown>) { const raw = JSON.stringify(value); return raw === "{}" ? "" : raw; }
