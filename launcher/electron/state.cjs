@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const { writePrivateFileAtomic } = require("./atomic-file.cjs");
 const { DEFAULT_PROXY_URL, normalizeProxyUrl } = require("./proxy-env.cjs");
-const { DEFAULT_CODEX_MODEL, normalizeModel } = require("./model-settings.cjs");
+const { DEFAULT_CODEX_MODEL, DEFAULT_CODEX_REASONING, normalizeModel, normalizeReasoning } = require("./model-settings.cjs");
 const DEFAULT_STATE = Object.freeze({
   version: 1,
   language: null,
@@ -9,6 +9,7 @@ const DEFAULT_STATE = Object.freeze({
   proxyEnabled: false,
   proxyUrl: DEFAULT_PROXY_URL,
   defaultModel: DEFAULT_CODEX_MODEL,
+  defaultReasoning: DEFAULT_CODEX_REASONING,
   mcpGuideStep: 0,
 });
 
@@ -23,6 +24,7 @@ function readState(filePath) {
       proxyEnabled: parsed.proxyEnabled,
       proxyUrl: parsed.proxyUrl,
       defaultModel: parsed.defaultModel,
+      defaultReasoning: parsed.defaultReasoning,
       mcpGuideStep: parsed.mcpGuideStep,
       ...(parsed.coreSetupComplete === undefined ? {} : { coreSetupComplete: parsed.coreSetupComplete }),
       ...(parsed.mcpSetupComplete === undefined ? {} : { mcpSetupComplete: parsed.mcpSetupComplete }),
@@ -43,6 +45,11 @@ function readState(filePath) {
       state.defaultModel = normalizeModel(state.defaultModel);
     } catch {
       state.defaultModel = DEFAULT_STATE.defaultModel;
+    }
+    try {
+      state.defaultReasoning = normalizeReasoning(state.defaultReasoning);
+    } catch {
+      state.defaultReasoning = DEFAULT_STATE.defaultReasoning;
     }
     if (!Number.isInteger(state.mcpGuideStep) || state.mcpGuideStep < 0 || state.mcpGuideStep > 2) {
       state.mcpGuideStep = DEFAULT_STATE.mcpGuideStep;
