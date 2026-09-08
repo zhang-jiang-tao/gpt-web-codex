@@ -27,11 +27,14 @@ import { VERSION } from "../../version";
 
 const sessionId = z.string().min(8).max(256);
 const sandbox = z.enum(["read-only", "workspace-write", "danger-full-access"]);
-const reasoning = z.enum(["none", "low", "medium", "high", "xhigh", "max"]);
+const reasoning = z.enum(["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
 const jobStatus = z.enum(["queued", "running", "completed", "failed", "timed_out", "cancelled"]);
 const compactPolicySchema = z.string();
 const noAuth = [{ type: "noauth" as const }];
 const defaultLunaModel = process.env.WEBGPT_DEFAULT_MODEL?.trim() || "gpt-5.6-luna";
+const defaultLunaReasoning = reasoning.safeParse(process.env.WEBGPT_DEFAULT_REASONING?.trim()).success
+  ? process.env.WEBGPT_DEFAULT_REASONING!.trim() as z.infer<typeof reasoning>
+  : "low";
 
 function conversationSessionId(
   explicit: string | undefined,
@@ -266,7 +269,7 @@ export async function runChatGptMcpServer(options: { statePath?: string } = {}):
       web_session_id: sessionId.optional(),
       workspace_path: z.string().min(1).max(16_384),
       model: z.string().min(1).max(200).optional(),
-      reasoning_effort: reasoning.default("low"),
+      reasoning_effort: reasoning.optional(),
       fast: z.boolean().default(true),
       permission_mode: sandbox.default("workspace-write"),
       timeout_ms: z.number().int().min(1_000).max(86_400_000).default(900_000),
@@ -297,7 +300,7 @@ export async function runChatGptMcpServer(options: { statePath?: string } = {}):
       workspacePath,
       permissionMode: input.permission_mode,
       model: input.model?.trim() || existingBinding?.model || defaultLunaModel,
-      reasoning: input.reasoning_effort,
+      reasoning: input.reasoning_effort ?? existingBinding?.reasoning ?? defaultLunaReasoning,
       fast: input.fast,
       timeoutMs: input.timeout_ms,
       sessionPolicyVersion: SESSION_POLICY_VERSION,
