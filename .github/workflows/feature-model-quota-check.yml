@@ -30,5 +30,12 @@ jobs:
         run: bun run launcher:typecheck
       - name: Launcher tests
         run: bun run launcher:test
-      - name: Launcher build
-        run: bun run launcher:build
+      - name: Package Windows installer
+        run: bun run --cwd launcher package:win
+      - name: Upload test installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpt-web-codex-model-quota-test
+          path: launcher/artifacts/*.exe
+          if-no-files-found: error
+          retention-days: 7
