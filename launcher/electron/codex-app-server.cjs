@@ -116,7 +116,7 @@ function normalizeCodexOverview(rateLimitsResult, modelListResult) {
 
 function appServerRequest(executable, env, timeoutMs = 12_000, clientVersion = "unknown") {
   return new Promise((resolve, reject) => {
-    const child = spawn(executable, ["app-server", "--stdio"], {
+    const child = spawn(executable, ["app-server", "--listen", "stdio://"], {
       env,
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
