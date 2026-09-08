@@ -59,17 +59,14 @@ function compareJobs(a, b) {
 
 function normalizeJobsState(parsed, options = {}) {
   const now = Number.isFinite(options.now) ? options.now : Date.now();
-  const maxRecent = Number.isInteger(options.maxRecent) ? Math.max(0, Math.min(200, options.maxRecent)) : 30;
   const jobs = parsed && typeof parsed === "object" && parsed.jobs && typeof parsed.jobs === "object"
     ? Object.values(parsed.jobs).map(job => normalizeJob(job, now)).filter(Boolean)
     : [];
   jobs.sort(compareJobs);
   const active = jobs.filter(job => ACTIVE_STATUSES.has(job.status));
-  const recent = jobs.filter(job => !ACTIVE_STATUSES.has(job.status)).slice(0, maxRecent);
   return {
     activeCount: active.length,
     active,
-    recent,
     updatedAt: new Date(now).toISOString(),
   };
 }
