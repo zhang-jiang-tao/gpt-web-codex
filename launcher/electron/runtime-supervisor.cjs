@@ -274,6 +274,7 @@ class RuntimeSupervisor {
     publishOperation,
     standaloneOnly = false,
     runtimeInvocationFactory = runtimeInvocation,
+    environmentProvider = () => ({ ...process.env }),
   }) {
     this.app = app;
     this.logger = logger;
@@ -285,6 +286,7 @@ class RuntimeSupervisor {
     this.publishOperation = publishOperation;
     this.standaloneOnly = standaloneOnly;
     this.runtimeInvocationFactory = runtimeInvocationFactory;
+    this.environmentProvider = environmentProvider;
     this.configPath = path.join(coreHome, "config.json");
     this.statePath = path.join(coreHome, "runtime", "launcher-supervisor.json");
     this.daemon = null;
@@ -417,7 +419,7 @@ class RuntimeSupervisor {
     const child = spawn(invocation.executable, invocation.args, {
       cwd: invocation.cwd,
       detached: DETACH_OWNED_CHILD,
-      env: { ...process.env },
+      env: this.environmentProvider(),
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
     });
@@ -1426,6 +1428,7 @@ class RuntimeSupervisor {
       const child = spawn(tunnel.binaryPath, args, {
         cwd: tunnel.profileDir,
         detached: DETACH_OWNED_CHILD,
+        env: this.environmentProvider(),
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
       });

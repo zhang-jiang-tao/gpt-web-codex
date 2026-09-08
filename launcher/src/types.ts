@@ -5,6 +5,8 @@ export interface LauncherState {
   version: 1;
   language: Language | null;
   keepRunningOnClose: boolean;
+  proxyEnabled: boolean;
+  proxyUrl: string;
   coreSetupComplete?: boolean;
   mcpSetupComplete?: boolean;
   mcpRuntimeInstalled?: boolean;
@@ -72,6 +74,7 @@ export interface LauncherApi {
   }): Promise<{ ok: boolean; stdout: string }>;
   setMcpStep(step: number): Promise<LauncherState>;
   setPreference(key: "keepRunningOnClose", value: boolean): Promise<LauncherState>;
+  setProxySettings(input: { enabled: boolean; url: string }): Promise<LauncherState>;
   logs(limit?: number): Promise<LogRecord[]>;
   openLogs(): Promise<string>;
   installUpdate(): Promise<boolean>;

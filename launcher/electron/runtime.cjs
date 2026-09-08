@@ -35,7 +35,16 @@ function collect(stream, chunks, onLine) {
 }
 
 class RuntimeHost {
-  constructor({ app, logger, sourceRoot, installedRuntimeRoot, runtimeRootProvider, publishOperation, supervisor }) {
+  constructor({
+    app,
+    logger,
+    sourceRoot,
+    installedRuntimeRoot,
+    runtimeRootProvider,
+    publishOperation,
+    supervisor,
+    environmentProvider = () => ({ ...process.env }),
+  }) {
     this.app = app;
     this.logger = logger;
     this.sourceRoot = sourceRoot;
@@ -43,6 +52,7 @@ class RuntimeHost {
     this.runtimeRootProvider = runtimeRootProvider;
     this.publishOperation = publishOperation;
     this.supervisor = supervisor;
+    this.environmentProvider = environmentProvider;
     this.active = null;
     this.activeChild = null;
     this.cleanupEphemeralSecrets();
@@ -112,7 +122,7 @@ class RuntimeHost {
         const child = spawn(invocation.executable, invocation.args, {
           cwd: invocation.cwd,
           detached: DETACH_OWNED_CHILD,
-          env: { ...process.env },
+          env: this.environmentProvider(),
           stdio: ["ignore", "pipe", "pipe"],
           windowsHide: true,
         });

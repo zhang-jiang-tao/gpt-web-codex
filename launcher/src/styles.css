@@ -49,8 +49,8 @@ code { font-family: var(--font-mono); }
 .pure-actions button.primary { background:#f2f2f2; color:#111; border-color:#fff; font-weight:650; }
 .pure-form { max-width:760px; display:grid; gap:17px; }
 .pure-form label, .pure-settings label { display:grid; gap:8px; color:#aaa; font-size:13px; }
-.pure-form input, .pure-settings select { border:1px solid #3a3a3a; background:#171717; color:#f2f2f2; border-radius:9px; padding:11px 12px; outline:none; }
-.pure-form input:focus, .pure-settings select:focus { border-color:#777; }
+.pure-form input, .pure-settings input, .pure-settings select { border:1px solid #3a3a3a; background:#171717; color:#f2f2f2; border-radius:9px; padding:11px 12px; outline:none; }
+.pure-form input:focus, .pure-settings input:focus, .pure-settings select:focus { border-color:#777; }
 .pure-check { display:flex!important; flex-direction:row!important; align-items:center; gap:9px!important; }
 .pure-check input { width:16px; height:16px; }
 .pure-doctor { margin-top:16px; display:grid; gap:12px; }
@@ -67,6 +67,10 @@ code { font-family: var(--font-mono); }
 .pure-empty { padding:25px; color:#777; }
 .pure-settings { max-width:650px; display:grid; gap:20px; }
 .pure-settings select { max-width:220px; }
+.pure-setting-group { display:grid; gap:12px; padding-top:2px; }
+.pure-setting-group > strong { color:#ddd; font-size:13px; }
+.pure-setting-group > small { color:#777; line-height:1.5; }
+.pure-setting-group > button { justify-self:start; }
 .pure-operation { position:fixed; right:20px; bottom:20px; display:flex; align-items:center; gap:9px; padding:11px 14px; border:1px solid #3b3b3b; background:#242424; border-radius:10px; color:#ddd; font-size:12px; box-shadow:0 12px 35px #0008; }
 .pure-operation span { width:7px; height:7px; border-radius:50%; background:#aaa; }
 .pure-operation.running span { background:#e7b34a; animation:pulse 1.2s infinite; }

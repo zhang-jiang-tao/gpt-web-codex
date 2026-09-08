@@ -21,6 +21,8 @@ const text = {
     configure: "Configure tunnel", tunnelId: "Tunnel ID", runtimeKey: "Runtime key", replace: "Replace saved credentials",
     connect: "Connect MCP", logs: "Recent runtime events", openLogs: "Open log folder", clearError: "Dismiss",
     keepRunning: "Keep MCP running when this window closes", language: "Language", status: "Status",
+    proxy: "Network proxy", useProxy: "Use custom proxy", proxyUrl: "Proxy URL", saveProxy: "Save proxy settings",
+    proxyHint: "Applied to MCP runtime and tunnel-client processes on the next connect/restart. When disabled, system environment proxy variables are inherited.",
     connectorHint: "Create or enable this connector in ChatGPT with Tunnel transport and Authentication None.",
     refresh: "Refresh", checking: "Working…",
   },
@@ -33,6 +35,8 @@ const text = {
     configure: "配置隧道", tunnelId: "隧道 ID", runtimeKey: "运行时密钥", replace: "替换已保存的凭据",
     connect: "连接 MCP", logs: "最近运行事件", openLogs: "打开日志目录", clearError: "关闭",
     keepRunning: "关闭窗口后继续运行 MCP", language: "语言", status: "状态",
+    proxy: "网络代理", useProxy: "使用自定义代理", proxyUrl: "代理地址", saveProxy: "保存代理设置",
+    proxyHint: "下一次连接/重启时应用到 MCP Runtime 和 tunnel-client；关闭时继续继承系统环境代理变量。",
     connectorHint: "在 ChatGPT 中创建或启用此连接器，连接方式选择隧道，身份验证选择无。",
     refresh: "刷新", checking: "处理中…",
   },
@@ -179,9 +183,20 @@ function Activity({ copy, logs }: { copy: typeof text.en | typeof text["zh-CN"];
 }
 
 function Settings({ copy, language, snapshot, setError, updateState }: { copy: typeof text.en | typeof text["zh-CN"]; language: Language; snapshot: LauncherSnapshot; setError: (value: string | null) => void; updateState: (state: LauncherState) => void }) {
+  const [proxyEnabled, setProxyEnabled] = useState(snapshot.state.proxyEnabled);
+  const [proxyUrl, setProxyUrl] = useState(snapshot.state.proxyUrl);
+  useEffect(() => {
+    setProxyEnabled(snapshot.state.proxyEnabled);
+    setProxyUrl(snapshot.state.proxyUrl);
+  }, [snapshot.state.proxyEnabled, snapshot.state.proxyUrl]);
   const changeLanguage = async (next: Language) => { try { updateState(await api!.setLanguage(next)); } catch (cause) { setError(messageOf(cause)); } };
   const setKeepRunning = async (value: boolean) => { try { updateState(await api!.setPreference("keepRunningOnClose", value)); } catch (cause) { setError(messageOf(cause)); } };
-  return <section><PageHeader title={copy.settings} subtitle="GPT Web Codex" /><div className="pure-card pure-settings"><label>{copy.language}<select value={language} onChange={(event) => void changeLanguage(event.target.value as Language)}><option value="zh-CN">简体中文</option><option value="en">English</option></select></label><label className="pure-check"><input checked={snapshot.state.keepRunningOnClose} type="checkbox" onChange={(event) => void setKeepRunning(event.target.checked)} />{copy.keepRunning}</label><button onClick={() => void api!.openLogs()}>{copy.openLogs}</button></div></section>;
+  const saveProxy = async () => {
+    setError(null);
+    try { updateState(await api!.setProxySettings({ enabled: proxyEnabled, url: proxyUrl })); }
+    catch (cause) { setError(messageOf(cause)); }
+  };
+  return <section><PageHeader title={copy.settings} subtitle="GPT Web Codex" /><div className="pure-card pure-settings"><label>{copy.language}<select value={language} onChange={(event) => void changeLanguage(event.target.value as Language)}><option value="zh-CN">简体中文</option><option value="en">English</option></select></label><label className="pure-check"><input checked={snapshot.state.keepRunningOnClose} type="checkbox" onChange={(event) => void setKeepRunning(event.target.checked)} />{copy.keepRunning}</label><div className="pure-setting-group"><strong>{copy.proxy}</strong><label className="pure-check"><input checked={proxyEnabled} type="checkbox" onChange={(event) => setProxyEnabled(event.target.checked)} />{copy.useProxy}</label><label>{copy.proxyUrl}<input placeholder="http://127.0.0.1:10808" value={proxyUrl} onChange={(event) => setProxyUrl(event.target.value)} /></label><small>{copy.proxyHint}</small><button onClick={() => void saveProxy()}>{copy.saveProxy}</button></div><button onClick={() => void api!.openLogs()}>{copy.openLogs}</button></div></section>;
 }
 
 type Copy = typeof text.en | typeof text["zh-CN"];

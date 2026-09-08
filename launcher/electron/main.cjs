@@ -27,6 +27,7 @@ const { RuntimeSupervisor } = require("./runtime-supervisor.cjs");
 const { runtimeBundlePaths } = require("./runtime-command.cjs");
 const { createUpdateController } = require("./update.cjs");
 const { createStateStore } = require("./state.cjs");
+const { buildChildEnvironment, normalizeProxyUrl } = require("./proxy-env.cjs");
 const {
   MIN_WINDOW_BOUNDS,
   readWindowState,
@@ -327,6 +328,15 @@ function registerIpc({ logger, stateStore }) {
     }
     return stateStore.update({ [key]: value === true });
   });
+  handle("launcher:set-proxy-settings", (_event, input) => {
+    const proxyUrl = normalizeProxyUrl(typeof input?.url === "string" ? input.url : "");
+    const state = stateStore.update({
+      proxyEnabled: input?.enabled === true,
+      proxyUrl,
+    });
+    send("launcher:state-changed", state);
+    return state;
+  });
   handle("launcher:logs", (_event, limit) => logger.recent(limit));
   handle("launcher:open-logs", async () => {
     const error = await shell.openPath(path.dirname(logger.filePath));
@@ -409,6 +419,7 @@ async function start() {
   };
 
   const stateStore = createStateStore(path.join(app.getPath("userData"), "launcher-state.json"));
+  const environmentProvider = () => buildChildEnvironment(stateStore.read());
   // Autostart belonged to the retired Codex routing bridge. Remove any legacy
   // registration once, without exposing a replacement preference.
   disableLegacyAutostart(app);
@@ -434,6 +445,7 @@ async function start() {
     browserDescriptorPath: BROWSER_DESCRIPTOR_PATH,
     publishOperation,
     standaloneOnly: true,
+    environmentProvider,
   });
   runtimeHost = new RuntimeHost({
     app,
@@ -444,6 +456,7 @@ async function start() {
     browserDescriptorPath: BROWSER_DESCRIPTOR_PATH,
     publishOperation,
     supervisor: runtimeSupervisor,
+    environmentProvider,
   });
   const updaterRuntimeRoot = runtimeRootProvider();
   updateController = createUpdateController({
