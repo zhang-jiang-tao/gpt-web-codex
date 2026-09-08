@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import type {
+  CodexOverview,
+  CodexQuotaWindow,
   DoctorReport,
   Language,
   LauncherSnapshot,
@@ -23,6 +25,10 @@ const text = {
     keepRunning: "Keep MCP running when this window closes", language: "Language", status: "Status",
     proxy: "Network proxy", useProxy: "Use custom proxy", proxyUrl: "Proxy URL", saveProxy: "Save proxy settings",
     proxyHint: "Applied to MCP runtime and tunnel-client processes on the next connect/restart. When disabled, system environment proxy variables are inherited.",
+    codexModel: "Codex model", defaultModel: "Default model", saveModel: "Save model",
+    modelHint: "Available models come from the local Codex CLI. The saved default applies after the next MCP reconnect/restart; initialized conversations keep their current model.",
+    quota: "Codex usage", refreshQuota: "Refresh", quotaUnavailable: "Usage data unavailable",
+    remaining: "remaining", resets: "Resets", credits: "Credits", unlimited: "Unlimited", plan: "Plan",
     connectorHint: "Create or enable this connector in ChatGPT with Tunnel transport and Authentication None.",
     refresh: "Refresh", checking: "Working…",
   },
@@ -37,6 +43,10 @@ const text = {
     keepRunning: "关闭窗口后继续运行 MCP", language: "语言", status: "状态",
     proxy: "网络代理", useProxy: "使用自定义代理", proxyUrl: "代理地址", saveProxy: "保存代理设置",
     proxyHint: "下一次连接/重启时应用到 MCP Runtime 和 tunnel-client；关闭时继续继承系统环境代理变量。",
+    codexModel: "Codex 模型", defaultModel: "默认模型", saveModel: "保存模型",
+    modelHint: "可选模型来自本机 Codex CLI。保存后在下一次 MCP 重连/重启时作为新会话默认模型；已初始化会话继续使用原模型。",
+    quota: "Codex 额度", refreshQuota: "刷新", quotaUnavailable: "额度数据不可用",
+    remaining: "剩余", resets: "重置", credits: "Credits", unlimited: "无限", plan: "套餐",
     connectorHint: "在 ChatGPT 中创建或启用此连接器，连接方式选择隧道，身份验证选择无。",
     refresh: "刷新", checking: "处理中…",
   },
@@ -116,6 +126,17 @@ export function App() {
 
 function Dashboard({ copy, snapshot, busy, setError, updateState }: PanelProps) {
   const [report, setReport] = useState<DoctorReport | null>(null);
+  const [overview, setOverview] = useState<CodexOverview | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const refreshOverview = async () => {
+    setOverviewLoading(true);
+    setOverviewError(null);
+    try { setOverview(await api!.codexOverview()); }
+    catch (cause) { setOverviewError(messageOf(cause)); }
+    finally { setOverviewLoading(false); }
+  };
+  useEffect(() => { void refreshOverview(); }, []);
   const runDoctor = async () => {
     setError(null);
     try { const next = await api!.verifyMcp(); setReport(next); }
@@ -127,8 +148,9 @@ function Dashboard({ copy, snapshot, busy, setError, updateState }: PanelProps) 
       <div className="pure-status-grid">
         <StatusCard title={copy.runtime} value={snapshot.mcpCredentialsConfigured ? copy.ready : copy.setup} tone={snapshot.mcpCredentialsConfigured ? "ready" : "warn"} />
         <StatusCard title={copy.connector} value={snapshot.connectorName} tone="neutral" />
-        <StatusCard title={copy.noBrowser} value="Chrome / Edge / Firefox" tone="ready" />
+        <StatusCard title={copy.codexModel} value={snapshot.state.defaultModel} tone="neutral" />
       </div>
+      <QuotaPanel copy={copy} overview={overview} loading={overviewLoading} error={overviewError} onRefresh={refreshOverview} />
       <div className="pure-card pure-callout">
         <div><h3>{copy.noBrowser}</h3><p>{copy.noBrowserDetail}</p></div>
         <div className="pure-actions">
@@ -185,18 +207,36 @@ function Activity({ copy, logs }: { copy: typeof text.en | typeof text["zh-CN"];
 function Settings({ copy, language, snapshot, setError, updateState }: { copy: typeof text.en | typeof text["zh-CN"]; language: Language; snapshot: LauncherSnapshot; setError: (value: string | null) => void; updateState: (state: LauncherState) => void }) {
   const [proxyEnabled, setProxyEnabled] = useState(snapshot.state.proxyEnabled);
   const [proxyUrl, setProxyUrl] = useState(snapshot.state.proxyUrl);
+  const [defaultModel, setDefaultModel] = useState(snapshot.state.defaultModel);
+  const [overview, setOverview] = useState<CodexOverview | null>(null);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
   useEffect(() => {
     setProxyEnabled(snapshot.state.proxyEnabled);
     setProxyUrl(snapshot.state.proxyUrl);
-  }, [snapshot.state.proxyEnabled, snapshot.state.proxyUrl]);
+    setDefaultModel(snapshot.state.defaultModel);
+  }, [snapshot.state.proxyEnabled, snapshot.state.proxyUrl, snapshot.state.defaultModel]);
+  useEffect(() => {
+    let cancelled = false;
+    void api!.codexOverview().then((value) => {
+      if (!cancelled) setOverview(value);
+    }).catch((cause) => {
+      if (!cancelled) setOverviewError(messageOf(cause));
+    });
+    return () => { cancelled = true; };
+  }, []);
   const changeLanguage = async (next: Language) => { try { updateState(await api!.setLanguage(next)); } catch (cause) { setError(messageOf(cause)); } };
   const setKeepRunning = async (value: boolean) => { try { updateState(await api!.setPreference("keepRunningOnClose", value)); } catch (cause) { setError(messageOf(cause)); } };
+  const saveModel = async () => {
+    setError(null);
+    try { updateState(await api!.setDefaultModel(defaultModel)); }
+    catch (cause) { setError(messageOf(cause)); }
+  };
   const saveProxy = async () => {
     setError(null);
     try { updateState(await api!.setProxySettings({ enabled: proxyEnabled, url: proxyUrl })); }
     catch (cause) { setError(messageOf(cause)); }
   };
-  return <section><PageHeader title={copy.settings} subtitle="GPT Web Codex" /><div className="pure-card pure-settings"><label>{copy.language}<select value={language} onChange={(event) => void changeLanguage(event.target.value as Language)}><option value="zh-CN">简体中文</option><option value="en">English</option></select></label><label className="pure-check"><input checked={snapshot.state.keepRunningOnClose} type="checkbox" onChange={(event) => void setKeepRunning(event.target.checked)} />{copy.keepRunning}</label><div className="pure-setting-group"><strong>{copy.proxy}</strong><label className="pure-check"><input checked={proxyEnabled} type="checkbox" onChange={(event) => setProxyEnabled(event.target.checked)} />{copy.useProxy}</label><label>{copy.proxyUrl}<input placeholder="http://127.0.0.1:10808" value={proxyUrl} onChange={(event) => setProxyUrl(event.target.value)} /></label><small>{copy.proxyHint}</small><button onClick={() => void saveProxy()}>{copy.saveProxy}</button></div><button onClick={() => void api!.openLogs()}>{copy.openLogs}</button></div></section>;
+  return <section><PageHeader title={copy.settings} subtitle="GPT Web Codex" /><div className="pure-card pure-settings"><label>{copy.language}<select value={language} onChange={(event) => void changeLanguage(event.target.value as Language)}><option value="zh-CN">简体中文</option><option value="en">English</option></select></label><label className="pure-check"><input checked={snapshot.state.keepRunningOnClose} type="checkbox" onChange={(event) => void setKeepRunning(event.target.checked)} />{copy.keepRunning}</label><div className="pure-setting-group"><strong>{copy.codexModel}</strong><label>{copy.defaultModel}<input list="codex-model-options" value={defaultModel} onChange={(event) => setDefaultModel(event.target.value)} /></label><datalist id="codex-model-options">{overview?.models.map((model) => <option key={model.model} value={model.model}>{model.displayName}</option>)}</datalist><small>{copy.modelHint}</small>{overviewError ? <small>{overviewError}</small> : null}<button onClick={() => void saveModel()}>{copy.saveModel}</button></div><div className="pure-setting-group"><strong>{copy.proxy}</strong><label className="pure-check"><input checked={proxyEnabled} type="checkbox" onChange={(event) => setProxyEnabled(event.target.checked)} />{copy.useProxy}</label><label>{copy.proxyUrl}<input placeholder="http://127.0.0.1:10808" value={proxyUrl} onChange={(event) => setProxyUrl(event.target.value)} /></label><small>{copy.proxyHint}</small><button onClick={() => void saveProxy()}>{copy.saveProxy}</button></div><button onClick={() => void api!.openLogs()}>{copy.openLogs}</button></div></section>;
 }
 
 type Copy = typeof text.en | typeof text["zh-CN"];
@@ -204,5 +244,18 @@ interface PanelProps { copy: Copy; snapshot: LauncherSnapshot; busy: boolean; se
 function PageHeader({ title, subtitle }: { title: string; subtitle: string }) { return <header className="pure-page-header"><h1>{title}</h1><p>{subtitle}</p></header>; }
 function StatusCard({ title, value, tone }: { title: string; value: string; tone: string }) { return <div className={`pure-card pure-status ${tone}`}><span>{title}</span><strong>{value}</strong></div>; }
 function DoctorResults({ report }: { report: DoctorReport }) { return <div className="pure-card pure-doctor">{report.checks.map((check) => <div key={check.id}><span className={`dot ${check.status === "ok" ? "ready" : check.status}`} /><div><strong>{check.message}</strong>{check.detail ? <small>{check.detail}</small> : null}</div></div>)}</div>; }
+function QuotaPanel({ copy, overview, loading, error, onRefresh }: { copy: Copy; overview: CodexOverview | null; loading: boolean; error: string | null; onRefresh: () => Promise<void> }) {
+  const windows = [overview?.primary, overview?.secondary].filter((value): value is CodexQuotaWindow => Boolean(value)).sort((a, b) => (a.windowDurationMins ?? 0) - (b.windowDurationMins ?? 0));
+  return <div className="pure-card pure-quota"><div className="pure-quota-head"><div><h3>{copy.quota}</h3>{overview?.planType ? <small>{copy.plan}: {overview.planType}</small> : null}</div><button disabled={loading} onClick={() => void onRefresh()}>{loading ? copy.checking : copy.refreshQuota}</button></div>{error ? <div className="pure-quota-empty">{copy.quotaUnavailable}: {error}</div> : windows.length ? <div className="pure-quota-grid">{windows.map((window, index) => <div className="pure-quota-row" key={`${window.windowDurationMins ?? "unknown"}-${index}`}><div className="pure-quota-label"><strong>{quotaWindowLabel(window.windowDurationMins)}</strong><span>{window.remainingPercent}% {copy.remaining}</span></div><progress max={100} value={window.remainingPercent} /><small>{window.resetsAt ? `${copy.resets}: ${formatReset(window.resetsAt)}` : ""}</small></div>)}</div> : <div className="pure-quota-empty">{loading ? copy.checking : copy.quotaUnavailable}</div>}{overview?.credits?.hasCredits ? <div className="pure-quota-meta">{copy.credits}: {overview.credits.unlimited ? copy.unlimited : overview.credits.balance ?? "—"}{overview.resetCreditsAvailable !== null ? ` · Reset credits: ${overview.resetCreditsAvailable}` : ""}</div> : null}</div>;
+}
+function quotaWindowLabel(minutes: number | null) {
+  if (minutes === 300) return "5h";
+  if (minutes === 10_080) return "Weekly";
+  if (!minutes) return "Limit";
+  if (minutes % 1_440 === 0) return `${minutes / 1_440}d`;
+  if (minutes % 60 === 0) return `${minutes / 60}h`;
+  return `${minutes}m`;
+}
+function formatReset(epochSeconds: number) { return new Date(epochSeconds * 1000).toLocaleString(); }
 function messageOf(value: unknown) { return value instanceof Error ? value.message : String(value); }
 function detail(value: Record<string, unknown>) { const raw = JSON.stringify(value); return raw === "{}" ? "" : raw; }
