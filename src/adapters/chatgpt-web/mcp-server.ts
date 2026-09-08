@@ -31,6 +31,7 @@ const reasoning = z.enum(["none", "low", "medium", "high", "xhigh", "max"]);
 const jobStatus = z.enum(["queued", "running", "completed", "failed", "timed_out", "cancelled"]);
 const compactPolicySchema = z.string();
 const noAuth = [{ type: "noauth" as const }];
+const defaultLunaModel = process.env.WEBGPT_DEFAULT_MODEL?.trim() || "gpt-5.6-luna";
 
 function conversationSessionId(
   explicit: string | undefined,
@@ -264,7 +265,7 @@ export async function runChatGptMcpServer(options: { statePath?: string } = {}):
     inputSchema: {
       web_session_id: sessionId.optional(),
       workspace_path: z.string().min(1).max(16_384),
-      model: z.string().min(1).max(200).default("gpt-5.6-luna"),
+      model: z.string().min(1).max(200).default(defaultLunaModel),
       reasoning_effort: reasoning.default("low"),
       fast: z.boolean().default(true),
       permission_mode: sandbox.default("workspace-write"),
