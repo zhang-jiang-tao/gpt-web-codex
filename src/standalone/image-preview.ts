@@ -14,6 +14,7 @@ export const IMAGE_PREVIEW_HTML = String.raw`<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="webgpt-preview-resource" content="__WEBGPT_PREVIEW_NAMESPACE__">
   <style>
     :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
