@@ -17,7 +17,9 @@ test("Codex job list puts active jobs first and preserves bounded work summaries
       running: {
         id: "running", status: "running", cwd: "D:\\work\\live", model: "gpt-5.6-luna",
         workSummary: "修复 P02 状态徽章", createdAt: "2026-09-08T09:55:00.000Z",
-        startedAt: "2026-09-08T09:56:00.000Z", pid: 1234, attempts: 1,
+        startedAt: "2026-09-08T09:56:00.000Z", pid: 1234, attempts: 2,
+        eventCount: 7, lastEventAt: "2026-09-08T09:59:30.000Z",
+        terminalEvent: "item.completed", stderrTail: "diagnostic tail",
       },
     },
   }, { now });
@@ -27,6 +29,11 @@ test("Codex job list puts active jobs first and preserves bounded work summaries
   assert.equal(snapshot.active[0].workSummary, "修复 P02 状态徽章");
   assert.equal(snapshot.active[0].durationMs, 4 * 60_000);
   assert.equal(snapshot.active[0].pid, 1234);
+  assert.equal(snapshot.active[0].attempts, 2);
+  assert.equal(snapshot.active[0].eventCount, 7);
+  assert.equal(snapshot.active[0].lastEventAt, "2026-09-08T09:59:30.000Z");
+  assert.equal(snapshot.active[0].terminalEvent, "item.completed");
+  assert.equal(snapshot.active[0].stderrTail, "diagnostic tail");
   assert.equal(snapshot.recent[0].id, "done");
   assert.equal(snapshot.recent[0].durationMs, 60_000);
 });
