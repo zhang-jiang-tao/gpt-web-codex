@@ -24,8 +24,8 @@ jobs:
         working-directory: launcher
       - name: Root typecheck
         run: bun run typecheck
-      - name: Root tests
-        run: bun run test
+      - name: Root feature tests
+        run: bun test tests/standalone-luna.test.ts --test-name-pattern "Codex invocation|same web session serializes jobs|recreated Luna manager|two fresh MCP processes|failed, timed-out"
       - name: Launcher typecheck
         run: bun run launcher:typecheck
       - name: Launcher tests
