@@ -114,7 +114,7 @@ function normalizeCodexOverview(rateLimitsResult, modelListResult) {
   };
 }
 
-function appServerRequest(executable, env, timeoutMs = 12_000) {
+function appServerRequest(executable, env, timeoutMs = 12_000, clientVersion = "unknown") {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, ["app-server", "--stdio"], {
       env,
@@ -177,6 +177,7 @@ function appServerRequest(executable, env, timeoutMs = 12_000) {
     }
 
     child.once("error", error => finish(error));
+    child.stdin.on("error", error => finish(error));
     child.stderr.on("data", chunk => { stderr = `${stderr}${String(chunk)}`.slice(-8_000); });
     child.stdout.on("data", chunk => {
       stdoutBuffer += String(chunk);
@@ -199,7 +200,7 @@ function appServerRequest(executable, env, timeoutMs = 12_000) {
       method: "initialize",
       id: 1,
       params: {
-        clientInfo: { name: "gpt-web-codex-launcher", title: "GPT Web Codex", version: "2.2.11" },
+        clientInfo: { name: "gpt-web-codex-launcher", title: "GPT Web Codex", version: clientVersion },
         capabilities: null,
       },
     });
@@ -209,7 +210,7 @@ function appServerRequest(executable, env, timeoutMs = 12_000) {
 async function readCodexOverview(options = {}) {
   const env = options.env ?? process.env;
   const executable = options.executable ?? resolveCodexExecutable(env);
-  return appServerRequest(executable, env, options.timeoutMs);
+  return appServerRequest(executable, env, options.timeoutMs, options.clientVersion);
 }
 
 module.exports = {
