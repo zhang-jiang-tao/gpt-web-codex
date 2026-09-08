@@ -23,6 +23,76 @@ test("Luna work summaries are bounded and single-line", () => {
   expect(summarizeLunaWork("x".repeat(300), 20)).toBe("xxxxxxxxxxxxxxxxxxx…");
 });
 
+test("zero-event Codex startup is killed and automatically retried once", async () => {
+  const root = mkdtempSync(join(tmpdir(), "webgpt-zero-event-retry-"));
+  const webSessionId = "chatgpt:zero-event-retry";
+  let invocationCount = 0;
+  try {
+    const store = new LunaStateStore(join(root, "state.json"));
+    store.bindLunaSession(webSessionId, "luna-thread-stalled");
+    const manager = new LunaJobManager(
+      store,
+      (_command, _args, cwd) => {
+        invocationCount += 1;
+        const script = invocationCount === 1
+          ? "process.stdin.resume();setInterval(()=>{},1000);"
+          : "process.stdin.resume();console.log(JSON.stringify({type:'thread.started',thread_id:'luna-thread-stalled'}));console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'recovered'}}));console.log(JSON.stringify({type:'turn.completed'}));";
+        return spawn(process.execPath, ["-e", script], { cwd, stdio: ["pipe", "pipe", "pipe"] });
+      },
+      join(root, "logs"),
+      process.execPath,
+      500,
+    );
+    const job = manager.start({ webSessionId, prompt: "retry stalled startup", cwd: root, timeoutMs: 5_000 });
+    await eventually(() => manager.get(job.id).status === "completed", 8_000);
+    const completed = manager.get(job.id);
+    expect(invocationCount).toBe(2);
+    expect(completed.attempts).toBe(2);
+    expect(completed.eventCount).toBeGreaterThan(0);
+    expect(completed.lastEventAt).toBeTruthy();
+    expect(completed.finalMessage).toBe("recovered");
+    expect(store.binding(webSessionId)?.lunaSessionId).toBe("luna-thread-stalled");
+    manager.shutdown();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("two zero-event Codex startups stop as startup_stalled without clearing the Luna thread", async () => {
+  const root = mkdtempSync(join(tmpdir(), "webgpt-zero-event-fail-"));
+  const webSessionId = "chatgpt:zero-event-fail";
+  let invocationCount = 0;
+  try {
+    const store = new LunaStateStore(join(root, "state.json"));
+    store.bindLunaSession(webSessionId, "luna-thread-preserved");
+    const manager = new LunaJobManager(
+      store,
+      (_command, _args, cwd) => {
+        invocationCount += 1;
+        const script = "process.stdin.resume();process.stderr.write('waiting for Codex');setInterval(()=>{},1000);";
+        return spawn(process.execPath, ["-e", script], { cwd, stdio: ["pipe", "pipe", "pipe"] });
+      },
+      join(root, "logs"),
+      process.execPath,
+      500,
+    );
+    const job = manager.start({ webSessionId, prompt: "stay stalled", cwd: root, timeoutMs: 5_000 });
+    await eventually(() => manager.get(job.id).status === "failed", 8_000);
+    const failed = manager.get(job.id);
+    expect(invocationCount).toBe(2);
+    expect(failed.attempts).toBe(2);
+    expect(failed.eventCount).toBe(0);
+    expect(failed.lastEventAt).toBeUndefined();
+    expect(failed.terminalEvent).toBe("startup_stalled");
+    expect(failed.error).toContain("no JSON events within 500ms");
+    expect(failed.stderrTail).toContain("waiting for Codex");
+    expect(store.binding(webSessionId)?.lunaSessionId).toBe("luna-thread-preserved");
+    manager.shutdown();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 async function eventually(check: () => boolean, timeoutMs = 5_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!check()) {
