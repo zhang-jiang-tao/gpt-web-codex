@@ -179,39 +179,24 @@ test("image preview keeps the standard MCP Apps initialization fallback", async 
   expect(mounted.messages.some(message => message.method === "ui/notifications/initialized")).toBe(true);
 });
 
-test("standard MCP Apps restore remembered preview ids after iframe recreation", async () => {
+test("standard MCP Apps do not restore unrelated historical preview ids", async () => {
   const previewId = "33333333-3333-4333-8333-333333333333";
   const storage = { localStorage: createStorage(), sessionStorage: createStorage() };
-  const first = mountPreview(undefined, storage);
-  const firstInitialize = first.messages.find(message => message.method === "ui/initialize");
-  first.dispatchMessage({ jsonrpc: "2.0", id: firstInitialize?.id, result: {} });
-  await flushPromises();
-  first.dispatchMessage({
-    jsonrpc: "2.0",
-    method: "ui/notifications/tool-result",
-    params: {
-      structuredContent: { preview_id: previewId },
-      _meta: {
-        webgpt_image_preview: {
-          preview_id: previewId,
-          name: "remembered.png",
-          mime_type: "image/png",
-          bytes: 5,
-          data_url: "data:image/png;base64,aW1hZ2U=",
-        },
-      },
-    },
-  });
+  storage.localStorage.setItem(
+    "webgpt-image-preview-ledger:ui://webgpt-luna/image-preview-v12.html:test-conversation",
+    JSON.stringify([previewId]),
+  );
 
-  const second = mountPreview(undefined, storage);
-  const secondInitialize = second.messages.find(message => message.method === "ui/initialize");
-  second.dispatchMessage({ jsonrpc: "2.0", id: secondInitialize?.id, result: {} });
+  const mounted = mountPreview(undefined, storage);
+  const initialize = mounted.messages.find(message => message.method === "ui/initialize");
+  mounted.dispatchMessage({ jsonrpc: "2.0", id: initialize?.id, result: {} });
   await flushPromises();
-  second.runTimers();
+  mounted.runTimers();
   await flushPromises();
-  expect(second.messages.find(message => message.method === "tools/call")).toMatchObject({
-    params: { name: "file_image_preview_restore", arguments: { preview_id: previewId } },
-  });
+
+  expect(mounted.messages.some(message => message.method === "tools/call")).toBe(false);
+  expect(mounted.elements.preview.src).toBe("");
+  expect(mounted.elements.statusText.textContent).toBe("当前工具结果没有可显示的图片。");
 });
 
 test("image preview persists once the ChatGPT widget-state bridge becomes available", () => {
