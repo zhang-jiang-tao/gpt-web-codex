@@ -42,9 +42,5 @@ jobs:
             }
           }
           $asset = Get-ChildItem 'launcher/artifacts/*.exe' | Select-Object -First 1
-          gh release create 'v2.2.11-feature-quota-jobs-watchdog-test' $asset.FullName `
-            --repo $repo `
-            --target '2a808d2c3a4e147903e343e1f85622c74ed38079' 
-            --title 'GPT Web Codex 2.2.11 Quota Jobs Watchdog Test' `
-            --notes 'Test build without model selection. Includes proxy support, Codex quota display, active Codex job monitoring, diagnostics, and zero-event startup watchdog recovery.' `
-            --prerelease
+          gh release create 'v2.2.11-feature-quota-jobs-watchdog-test' $asset.FullName --repo $repo --target '2a808d2c3a4e147903e343e1f85622c74ed38079' --title 'GPT Web Codex 2.2.11 Quota Jobs Watchdog Test' --notes 'Test build without model selection. Includes proxy support, Codex quota display, active Codex job monitoring, diagnostics, and zero-event startup watchdog recovery.' --prerelease
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
