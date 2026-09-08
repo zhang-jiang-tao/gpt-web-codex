@@ -1,0 +1,51 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-windows-exe.yml"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install root dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install launcher dependencies
+        run: bun install --cwd launcher --frozen-lockfile
+
+      - name: Install Electron binary
+        shell: pwsh
+        run: bun .\launcher\node_modules\electron\install.js
+
+      - name: Typecheck
+        run: bun x tsc --noEmit
+
+      - name: Run widget regression tests
+        run: bun test tests/image-preview-ui.test.ts tests/standalone-luna.test.ts
+
+      - name: Package Windows EXE
+        run: bun run --cwd launcher package:win
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpt-web-codex-windows-exe
+          path: launcher/release/*.exe
+          if-no-files-found: error
+          retention-days: 14
