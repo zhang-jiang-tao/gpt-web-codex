@@ -528,7 +528,7 @@ test("standalone MCP exposes Luna and direct tools without a turn broker", async
   }
 });
 
-test("completed Luna image status returns native image content and inline preview metadata", async () => {
+test("completed Luna image status returns native image content without binding inline preview UI", async () => {
   const root = mkdtempSync(join(tmpdir(), "webgpt-mcp-luna-image-status-"));
   const statePath = join(root, "state.json");
   const image = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
@@ -552,7 +552,9 @@ test("completed Luna image status returns native image content and inline previe
   try {
     await client.connect(transport);
     const tools = await client.listTools();
-    expect(tools.tools.find(tool => tool.name === "codexluna_status")?._meta?.["openai/outputTemplate"]).toBe(IMAGE_PREVIEW_RESOURCE_URI);
+    expect(tools.tools.find(tool => tool.name === "codexluna_status")?._meta?.["openai/outputTemplate"]).toBeUndefined();
+    expect(tools.tools.find(tool => tool.name === "codexluna_status")?._meta?.["ui/resourceUri"]).toBeUndefined();
+    expect(tools.tools.find(tool => tool.name === "file_image_preview")?._meta?.["openai/outputTemplate"]).toBe(IMAGE_PREVIEW_RESOURCE_URI);
     const output = await client.callTool({ name: "codexluna_status", arguments: { job_id: storedJob.id } });
     expect(output.isError).not.toBe(true);
     expect(output.structuredContent).toMatchObject({
