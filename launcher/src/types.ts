@@ -7,9 +7,6 @@ export interface LauncherState {
   keepRunningOnClose: boolean;
   proxyEnabled: boolean;
   proxyUrl: string;
-  codexDefaultsEnabled: boolean;
-  defaultModel: string;
-  defaultReasoning: string;
   coreSetupComplete?: boolean;
   mcpSetupComplete?: boolean;
   mcpRuntimeInstalled?: boolean;
@@ -54,21 +51,6 @@ export interface CodexQuotaWindow {
   resetsAt: number | null;
 }
 
-export interface CodexReasoningOption {
-  reasoningEffort: string;
-  description: string;
-}
-
-export interface CodexModelOption {
-  model: string;
-  displayName: string;
-  description: string;
-  hidden: boolean;
-  isDefault: boolean;
-  defaultReasoningEffort: string | null;
-  supportedReasoningEfforts: CodexReasoningOption[];
-}
-
 export interface CodexOverview {
   planType: string | null;
   limitId: string | null;
@@ -77,8 +59,6 @@ export interface CodexOverview {
   credits: { hasCredits: boolean; unlimited: boolean; balance: string | null } | null;
   resetCreditsAvailable: number | null;
   ordinaryUsageAllowed: boolean | null;
-  models: CodexModelOption[];
-  warnings: string[];
 }
 
 export type CodexJobStatus = "queued" | "running" | "completed" | "failed" | "timed_out" | "cancelled";
@@ -141,7 +121,6 @@ export interface LauncherApi {
   setMcpStep(step: number): Promise<LauncherState>;
   setPreference(key: "keepRunningOnClose", value: boolean): Promise<LauncherState>;
   setProxySettings(input: { enabled: boolean; url: string }): Promise<LauncherState>;
-  setCodexDefaults(input: { enabled: boolean; model: string; reasoning: string }): Promise<LauncherState>;
   codexOverview(): Promise<CodexOverview>;
   codexJobs(): Promise<CodexJobsSnapshot>;
   logs(limit?: number): Promise<LogRecord[]>;
