@@ -128,7 +128,7 @@ export class LunaJobManager {
       imageArtifacts: [],
       cwd,
       model: input.model?.trim() || process.env.WEBGPT_DEFAULT_MODEL?.trim() || "gpt-5.6-luna",
-      reasoning: input.reasoning ?? "low",
+      reasoning: input.reasoning ?? (process.env.WEBGPT_DEFAULT_REASONING?.trim() as LunaJob["reasoning"] | undefined) ?? "low",
       fast: input.fast ?? true,
       sandbox: input.sandbox ?? "workspace-write",
       timeoutMs: input.timeoutMs ?? 15 * 60_000,
