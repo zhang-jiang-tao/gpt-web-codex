@@ -35,7 +35,8 @@ const text = {
     jobsTitle: "Codex jobs", jobsSubtitle: "Active and recent Luna executions started by GPT Web Codex.",
     activeJobs: "Active", recentJobs: "Recent", noActiveJobs: "No Codex jobs are running.",
     noRecentJobs: "No recent Codex jobs.", work: "Work", workspace: "Workspace", model: "Model",
-    duration: "Duration", pid: "PID", legacyWork: "Work summary was not recorded by this older job.",
+    duration: "Duration", pid: "PID", diagnostics: "Diagnostics", events: "Events", attempts: "Attempts",
+    lastEvent: "Last event", noEvent: "No event", legacyWork: "Work summary was not recorded by this older job.",
     queued: "Queued", running: "Running", completed: "Completed", failed: "Failed", timed_out: "Timed out", cancelled: "Cancelled",
     refresh: "Refresh", checking: "Working…",
   },
@@ -58,7 +59,8 @@ const text = {
     jobsTitle: "Codex 任务", jobsSubtitle: "显示 GPT Web Codex 启动的正在运行和最近 Luna 任务。",
     activeJobs: "正在运行", recentJobs: "最近任务", noActiveJobs: "当前没有正在运行的 Codex 任务。",
     noRecentJobs: "暂无最近任务。", work: "工作", workspace: "工作区", model: "模型",
-    duration: "运行时间", pid: "PID", legacyWork: "该历史任务创建于功能加入前，未记录工作摘要。",
+    duration: "运行时间", pid: "PID", diagnostics: "诊断", events: "事件", attempts: "尝试",
+    lastEvent: "最后事件", noEvent: "无事件", legacyWork: "该历史任务创建于功能加入前，未记录工作摘要。",
     queued: "排队中", running: "运行中", completed: "已完成", failed: "失败", timed_out: "超时", cancelled: "已取消",
     refresh: "刷新", checking: "处理中…",
   },
@@ -222,7 +224,7 @@ function JobsPanel({ copy }: { copy: Copy }) {
 }
 
 function JobTable({ copy, title, jobs, empty }: { copy: Copy; title: string; jobs: CodexJobItem[]; empty: string }) {
-  return <div className="pure-card pure-jobs-card"><h3>{title}</h3>{jobs.length ? <div className="pure-job-table"><div className="pure-job-row pure-job-header"><span>{copy.status}</span><span>{copy.work}</span><span>{copy.workspace}</span><span>{copy.model}</span><span>{copy.duration}</span><span>{copy.pid}</span></div>{jobs.map((job) => <div className="pure-job-row" key={job.id}><span><span className={`pure-job-status ${job.status}`}>{jobStatusLabel(copy, job.status)}</span></span><span className="pure-job-work" title={job.workSummary ?? copy.legacyWork}>{job.workSummary ?? copy.legacyWork}</span><span className="pure-job-workspace" title={job.workspacePath}>{job.workspacePath}</span><span><strong>{job.model ?? "—"}</strong>{job.reasoning ? <small>{job.reasoning}</small> : null}</span><span>{formatDuration(job.durationMs)}</span><span>{job.pid ?? "—"}</span></div>)}</div> : <div className="pure-empty">{empty}</div>}</div>;
+  return <div className="pure-card pure-jobs-card"><h3>{title}</h3>{jobs.length ? <div className="pure-job-table"><div className="pure-job-row pure-job-header"><span>{copy.status}</span><span>{copy.work}</span><span>{copy.workspace}</span><span>{copy.model}</span><span>{copy.duration}</span><span>{copy.pid}</span><span>{copy.diagnostics}</span></div>{jobs.map((job) => <div className="pure-job-row" key={job.id}><span><span className={`pure-job-status ${job.status}`}>{jobStatusLabel(copy, job.status)}</span>{job.terminalEvent ? <small>{job.terminalEvent}</small> : null}</span><span className="pure-job-work" title={job.workSummary ?? copy.legacyWork}>{job.workSummary ?? copy.legacyWork}</span><span className="pure-job-workspace" title={job.workspacePath}>{job.workspacePath}</span><span><strong>{job.model ?? "—"}</strong>{job.reasoning ? <small>{job.reasoning}</small> : null}</span><span>{formatDuration(job.durationMs)}</span><span>{job.pid ?? "—"}</span><span className="pure-job-diagnostics"><strong>{copy.events}: {job.eventCount}</strong><small>{copy.attempts}: {job.attempts}</small><small>{copy.lastEvent}: {job.lastEventAt ? formatEventTime(job.lastEventAt) : copy.noEvent}</small>{job.stderrTail ? <small className="pure-job-stderr" title={job.stderrTail}>{job.stderrTail}</small> : null}</span></div>)}</div> : <div className="pure-empty">{empty}</div>}</div>;
 }
 
 function McpPanel({ copy, snapshot, busy, setError, updateState }: PanelProps) {
@@ -330,5 +332,9 @@ function formatDuration(value: number | null) {
     : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 function jobStatusLabel(copy: Copy, status: CodexJobItem["status"]) { return copy[status]; }
+function formatEventTime(value: string) {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toLocaleTimeString() : "—";
+}
 function messageOf(value: unknown) { return value instanceof Error ? value.message : String(value); }
 function detail(value: Record<string, unknown>) { const raw = JSON.stringify(value); return raw === "{}" ? "" : raw; }
