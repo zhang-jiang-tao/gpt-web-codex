@@ -6,18 +6,11 @@ import { createInterface } from "node:readline";
 import { buildCodexInvocation } from "./codex-command";
 import { terminateOwnedProcessTree } from "./process-tree";
 import { defaultStandaloneLogDir, LunaStateStore } from "./state-store";
-import type { LunaJob, LunaReasoning, StartLunaJobInput } from "./types";
+import type { LunaJob, StartLunaJobInput } from "./types";
 
 type SpawnCodex = (command: string, args: string[], cwd: string) => ChildProcessWithoutNullStreams;
 
 export const DEFAULT_STARTUP_EVENT_TIMEOUT_MS = 45_000;
-const REASONING_LEVELS = new Set<LunaReasoning>(["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
-
-function defaultReasoningFromEnvironment(): LunaReasoning {
-  const value = process.env.WEBGPT_DEFAULT_REASONING?.trim() as LunaReasoning | undefined;
-  return value && REASONING_LEVELS.has(value) ? value : "low";
-}
-
 function defaultSpawn(command: string, args: string[], cwd: string): ChildProcessWithoutNullStreams {
   return spawn(command, args, {
     cwd, stdio: ["pipe", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32",
@@ -133,8 +126,8 @@ export class LunaJobManager {
       wantsImagePreview: requestedImagePreview(prompt),
       imageArtifacts: [],
       cwd,
-      model: input.model?.trim() || process.env.WEBGPT_DEFAULT_MODEL?.trim() || "gpt-5.6-luna",
-      reasoning: input.reasoning ?? defaultReasoningFromEnvironment(),
+      model: input.model?.trim() || "gpt-5.6-luna",
+      reasoning: input.reasoning ?? "low",
       fast: input.fast ?? true,
       sandbox: input.sandbox ?? "workspace-write",
       timeoutMs: input.timeoutMs ?? 15 * 60_000,
