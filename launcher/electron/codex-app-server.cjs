@@ -114,9 +114,13 @@ function normalizeCodexOverview(rateLimitsResult, modelListResult) {
   };
 }
 
+function appServerArgs() {
+  return ["app-server", "--listen", "stdio://"];
+}
+
 function appServerRequest(executable, env, timeoutMs = 12_000, clientVersion = "unknown") {
   return new Promise((resolve, reject) => {
-    const child = spawn(executable, ["app-server", "--listen", "stdio://"], {
+    const child = spawn(executable, appServerArgs(), {
       env,
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
@@ -214,6 +218,7 @@ async function readCodexOverview(options = {}) {
 }
 
 module.exports = {
+  appServerArgs,
   normalizeCodexOverview,
   readCodexOverview,
   resolveCodexExecutable,
