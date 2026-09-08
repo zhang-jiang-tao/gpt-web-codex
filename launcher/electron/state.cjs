@@ -1,16 +1,12 @@
 const fs = require("node:fs");
 const { writePrivateFileAtomic } = require("./atomic-file.cjs");
 const { DEFAULT_PROXY_URL, normalizeProxyUrl } = require("./proxy-env.cjs");
-const { DEFAULT_CODEX_MODEL, DEFAULT_CODEX_REASONING, normalizeModel, normalizeReasoning } = require("./model-settings.cjs");
 const DEFAULT_STATE = Object.freeze({
   version: 1,
   language: null,
   keepRunningOnClose: true,
   proxyEnabled: false,
   proxyUrl: DEFAULT_PROXY_URL,
-  codexDefaultsEnabled: false,
-  defaultModel: DEFAULT_CODEX_MODEL,
-  defaultReasoning: DEFAULT_CODEX_REASONING,
   mcpGuideStep: 0,
 });
 
@@ -24,9 +20,6 @@ function readState(filePath) {
       keepRunningOnClose: parsed.keepRunningOnClose,
       proxyEnabled: parsed.proxyEnabled,
       proxyUrl: parsed.proxyUrl,
-      codexDefaultsEnabled: parsed.codexDefaultsEnabled,
-      defaultModel: parsed.defaultModel,
-      defaultReasoning: parsed.defaultReasoning,
       mcpGuideStep: parsed.mcpGuideStep,
       ...(parsed.coreSetupComplete === undefined ? {} : { coreSetupComplete: parsed.coreSetupComplete }),
       ...(parsed.mcpSetupComplete === undefined ? {} : { mcpSetupComplete: parsed.mcpSetupComplete }),
@@ -35,23 +28,13 @@ function readState(filePath) {
     if (state.language !== null && state.language !== "en" && state.language !== "zh-CN") {
       state.language = DEFAULT_STATE.language;
     }
-    for (const key of ["keepRunningOnClose", "proxyEnabled", "codexDefaultsEnabled"]) {
+    for (const key of ["keepRunningOnClose", "proxyEnabled"]) {
       if (typeof state[key] !== "boolean") state[key] = DEFAULT_STATE[key];
     }
     try {
       state.proxyUrl = normalizeProxyUrl(state.proxyUrl);
     } catch {
       state.proxyUrl = DEFAULT_STATE.proxyUrl;
-    }
-    try {
-      state.defaultModel = normalizeModel(state.defaultModel);
-    } catch {
-      state.defaultModel = DEFAULT_STATE.defaultModel;
-    }
-    try {
-      state.defaultReasoning = normalizeReasoning(state.defaultReasoning);
-    } catch {
-      state.defaultReasoning = DEFAULT_STATE.defaultReasoning;
     }
     if (!Number.isInteger(state.mcpGuideStep) || state.mcpGuideStep < 0 || state.mcpGuideStep > 2) {
       state.mcpGuideStep = DEFAULT_STATE.mcpGuideStep;
