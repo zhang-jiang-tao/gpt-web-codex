@@ -49,6 +49,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gpt-web-codex-windows-exe
-          path: launcher/release/*.exe
+          path: launcher/artifacts/*.exe
           if-no-files-found: error
           retention-days: 14
