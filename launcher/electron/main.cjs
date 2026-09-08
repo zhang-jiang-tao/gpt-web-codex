@@ -28,7 +28,7 @@ const { runtimeBundlePaths } = require("./runtime-command.cjs");
 const { createUpdateController } = require("./update.cjs");
 const { createStateStore } = require("./state.cjs");
 const { buildChildEnvironment, normalizeProxyUrl } = require("./proxy-env.cjs");
-const { normalizeModel } = require("./model-settings.cjs");
+const { normalizeModel, normalizeReasoning } = require("./model-settings.cjs");
 const { readCodexOverview } = require("./codex-app-server.cjs");
 const { readCodexJobs } = require("./codex-jobs.cjs");
 const {
@@ -340,8 +340,11 @@ function registerIpc({ logger, stateStore }) {
     send("launcher:state-changed", state);
     return state;
   });
-  handle("launcher:set-default-model", (_event, model) => {
-    const state = stateStore.update({ defaultModel: normalizeModel(model) });
+  handle("launcher:set-codex-defaults", (_event, input) => {
+    const state = stateStore.update({
+      defaultModel: normalizeModel(input?.model),
+      defaultReasoning: normalizeReasoning(input?.reasoning),
+    });
     send("launcher:state-changed", state);
     return state;
   });
@@ -349,7 +352,7 @@ function registerIpc({ logger, stateStore }) {
     env: buildChildEnvironment(stateStore.read()),
     clientVersion: app.getVersion(),
   }));
-  handle("launcher:codex-jobs", () => readCodexJobs(CORE_HOME, { maxRecent: 40 }));
+  handle("launcher:codex-jobs", () => readCodexJobs(CORE_HOME));
   handle("launcher:logs", (_event, limit) => logger.recent(limit));
   handle("launcher:open-logs", async () => {
     const error = await shell.openPath(path.dirname(logger.filePath));
@@ -437,6 +440,7 @@ async function start() {
     return {
       ...buildChildEnvironment(state),
       WEBGPT_DEFAULT_MODEL: state.defaultModel,
+      WEBGPT_DEFAULT_REASONING: state.defaultReasoning,
     };
   };
   // Autostart belonged to the retired Codex routing bridge. Remove any legacy
