@@ -40,6 +40,8 @@ export interface LunaJob {
   terminalEvent?: string;
   finalMessage?: string;
   error?: string;
+  stderrTail?: string;
+  lastEventAt?: string;
   mutationSeen: boolean;
   eventCount: number;
   attempts: number;
