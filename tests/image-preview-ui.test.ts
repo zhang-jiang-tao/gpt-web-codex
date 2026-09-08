@@ -246,3 +246,32 @@ test("image preview persists once the ChatGPT widget-state bridge becomes availa
     },
   });
 });
+
+test("image preview widget state persistence is safe under synchronous host reentry", () => {
+  const previewId = "44444444-4444-4444-8444-444444444444";
+  const openai: Record<string, unknown> = {
+    toolResponseMetadata: {
+      mcp_tool_result: {
+        _meta: {
+          webgpt_image_preview: {
+            preview_id: previewId,
+            name: "reentrant.png",
+            mime_type: "image/png",
+            bytes: 5,
+            data_url: "data:image/png;base64,aW1hZ2U=",
+          },
+        },
+      },
+    },
+  };
+  const mounted = mountPreview(openai);
+  let calls = 0;
+  openai.setWidgetState = () => {
+    calls += 1;
+    mounted.dispatchGlobals({});
+  };
+
+  expect(() => mounted.dispatchGlobals({})).not.toThrow();
+  expect(calls).toBe(1);
+});
+
