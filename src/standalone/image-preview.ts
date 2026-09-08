@@ -125,11 +125,16 @@ export const IMAGE_PREVIEW_HTML = String.raw`<!doctype html>
       const flushPreviewState = () => {
         const api = window.openai;
         if (!pendingPreviewState || typeof api?.setWidgetState !== "function") return false;
+        // Clear before entering the ChatGPT host because setWidgetState may synchronously
+        // re-enter through openai:set_globals and call flushPreviewState again.
+        const state = pendingPreviewState;
+        pendingPreviewState = null;
         try {
-          api.setWidgetState(pendingPreviewState);
-          pendingPreviewState = null;
+          api.setWidgetState(state);
           return true;
         } catch {
+          // Restore only when no newer state was queued during the failed host call.
+          if (!pendingPreviewState) pendingPreviewState = state;
           return false;
         }
       };
