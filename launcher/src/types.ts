@@ -83,6 +83,10 @@ export interface CodexJobItem {
   permissionMode: string | null;
   pid: number | null;
   attempts: number;
+  eventCount: number;
+  lastEventAt: string | null;
+  terminalEvent: string | null;
+  stderrTail: string | null;
   createdAt: string | null;
   startedAt: string | null;
   finishedAt: string | null;
