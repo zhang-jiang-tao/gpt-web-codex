@@ -28,7 +28,6 @@ const { runtimeBundlePaths } = require("./runtime-command.cjs");
 const { createUpdateController } = require("./update.cjs");
 const { createStateStore } = require("./state.cjs");
 const { buildChildEnvironment, normalizeProxyUrl } = require("./proxy-env.cjs");
-const { normalizeModel, normalizeReasoning } = require("./model-settings.cjs");
 const { readCodexOverview } = require("./codex-app-server.cjs");
 const { readCodexJobs } = require("./codex-jobs.cjs");
 const {
@@ -340,15 +339,6 @@ function registerIpc({ logger, stateStore }) {
     send("launcher:state-changed", state);
     return state;
   });
-  handle("launcher:set-codex-defaults", (_event, input) => {
-    const state = stateStore.update({
-      codexDefaultsEnabled: input?.enabled === true,
-      defaultModel: normalizeModel(input?.model),
-      defaultReasoning: normalizeReasoning(input?.reasoning),
-    });
-    send("launcher:state-changed", state);
-    return state;
-  });
   handle("launcher:codex-overview", () => readCodexOverview({
     env: buildChildEnvironment(stateStore.read()),
     clientVersion: app.getVersion(),
@@ -436,21 +426,7 @@ async function start() {
   };
 
   const stateStore = createStateStore(path.join(app.getPath("userData"), "launcher-state.json"));
-  const environmentProvider = () => {
-    const state = stateStore.read();
-    const env = {
-      ...buildChildEnvironment(state),
-      WEBGPT_CODEX_DEFAULTS_ENABLED: state.codexDefaultsEnabled ? "1" : "0",
-    };
-    if (state.codexDefaultsEnabled) {
-      env.WEBGPT_DEFAULT_MODEL = state.defaultModel;
-      env.WEBGPT_DEFAULT_REASONING = state.defaultReasoning;
-    } else {
-      delete env.WEBGPT_DEFAULT_MODEL;
-      delete env.WEBGPT_DEFAULT_REASONING;
-    }
-    return env;
-  };
+  const environmentProvider = () => buildChildEnvironment(stateStore.read());
   // Autostart belonged to the retired Codex routing bridge. Remove any legacy
   // registration once, without exposing a replacement preference.
   disableLegacyAutostart(app);
