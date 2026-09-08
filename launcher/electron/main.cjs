@@ -30,6 +30,7 @@ const { createStateStore } = require("./state.cjs");
 const { buildChildEnvironment, normalizeProxyUrl } = require("./proxy-env.cjs");
 const { normalizeModel } = require("./model-settings.cjs");
 const { readCodexOverview } = require("./codex-app-server.cjs");
+const { readCodexJobs } = require("./codex-jobs.cjs");
 const {
   MIN_WINDOW_BOUNDS,
   readWindowState,
@@ -348,6 +349,7 @@ function registerIpc({ logger, stateStore }) {
     env: buildChildEnvironment(stateStore.read()),
     clientVersion: app.getVersion(),
   }));
+  handle("launcher:codex-jobs", () => readCodexJobs(CORE_HOME, { maxRecent: 40 }));
   handle("launcher:logs", (_event, limit) => logger.recent(limit));
   handle("launcher:open-logs", async () => {
     const error = await shell.openPath(path.dirname(logger.filePath));
