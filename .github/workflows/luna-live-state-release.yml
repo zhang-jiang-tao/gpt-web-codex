@@ -1,0 +1,46 @@
+name: Publish Luna live state test release
+
+on:
+  push:
+    branches:
+      - fix/luna-live-state-sync-test
+    paths:
+      - ".github/workflows/luna-live-state-release.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Install root dependencies
+        run: bun install --frozen-lockfile
+      - name: Install launcher dependencies
+        run: bun install --cwd launcher --frozen-lockfile
+      - name: Install Electron binary
+        shell: pwsh
+        run: bun .\launcher\node_modules\electron\install.js
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Run Luna live state regression tests
+        run: bun test --timeout 15000 tests/standalone-luna.test.ts --test-name-pattern "running Luna jobs|cancelled Luna jobs"
+      - name: Package Windows EXE
+        run: bun run --cwd launcher package:win
+      - name: Publish test prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v2.2.11-luna-live-state-test"
+          $asset = Get-ChildItem "launcher/artifacts/*.exe" | Select-Object -First 1
+          if (-not $asset) { throw "Windows installer was not found." }
+          gh release delete $tag --repo $env:GITHUB_REPOSITORY --yes 2>$null
+          git push origin ":refs/tags/$tag" 2>$null
+          gh release create $tag $asset.FullName --repo $env:GITHUB_REPOSITORY --target 42bdd2f7027faad23ab1db40a46e412e782c1b3e --title "GPT Web Codex 2.2.11 Luna Live State Test" --notes "Test build for live Luna job state persistence. Persists eventCount and mutationSeen while running and preserves eventCount, mutationSeen, and lunaSessionId after cancel." --prerelease
