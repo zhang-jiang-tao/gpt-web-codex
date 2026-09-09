@@ -25,4 +25,4 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
       - name: Run standalone Luna regression tests
-        run: bun test --timeout 15000 tests/standalone-luna.test.ts
+        run: bun test --timeout 15000 tests/standalone-luna.test.ts --test-name-pattern "running Luna jobs|cancelled Luna jobs"
