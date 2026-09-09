@@ -10,6 +10,8 @@ import type { LunaJob, StartLunaJobInput } from "./types";
 
 type SpawnCodex = (command: string, args: string[], cwd: string) => ChildProcessWithoutNullStreams;
 
+const RUNTIME_STATE_FLUSH_INTERVAL_MS = 250;
+
 function defaultSpawn(command: string, args: string[], cwd: string): ChildProcessWithoutNullStreams {
   return spawn(command, args, {
     cwd, stdio: ["pipe", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32",
@@ -199,6 +201,27 @@ export class LunaJobManager {
     const imageArtifacts = new Set<string>(queued.imageArtifacts ?? []);
     let stderr = "";
     let timedOut = false;
+    let runtimeStateFlushTimer: ReturnType<typeof setTimeout> | undefined;
+    let lastRuntimeStateFlushAt = 0;
+
+    const flushRuntimeState = () => {
+      if (runtimeStateFlushTimer) {
+        clearTimeout(runtimeStateFlushTimer);
+        runtimeStateFlushTimer = undefined;
+      }
+      lastRuntimeStateFlushAt = Date.now();
+      this.store.updateJob(jobId, { eventCount, mutationSeen, lunaSessionId });
+    };
+    const scheduleRuntimeStateFlush = () => {
+      const elapsed = Date.now() - lastRuntimeStateFlushAt;
+      if (elapsed >= RUNTIME_STATE_FLUSH_INTERVAL_MS) {
+        flushRuntimeState();
+        return;
+      }
+      if (runtimeStateFlushTimer) return;
+      runtimeStateFlushTimer = setTimeout(flushRuntimeState, RUNTIME_STATE_FLUSH_INTERVAL_MS - elapsed);
+      runtimeStateFlushTimer.unref?.();
+    };
 
     let forceTimer: ReturnType<typeof setTimeout> | undefined;
     const timer = setTimeout(() => {
@@ -229,6 +252,7 @@ export class LunaJobManager {
       } catch {
         // Preserve malformed output in the JSONL log; the terminal process result remains authoritative.
       }
+      scheduleRuntimeStateFlush();
     });
     child.stderr.on("data", chunk => { stderr = `${stderr}${String(chunk)}`.slice(-16_000); });
     child.stdin.end(`${prompt}\n`);
@@ -241,6 +265,7 @@ export class LunaJobManager {
     if (forceTimer) clearTimeout(forceTimer);
     lines.close();
     this.active.delete(jobId);
+    flushRuntimeState();
     const current = this.get(jobId);
     if (current.status === "cancelled") return;
     const status = timedOut ? "timed_out" : outcome.code === 0 && terminalEvent === "turn.completed" ? "completed" : "failed";

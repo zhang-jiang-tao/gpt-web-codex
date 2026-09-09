@@ -102,6 +102,110 @@ test("Codex invocation maps all three standalone permission modes explicitly", (
   }
 });
 
+test("running Luna jobs persist event counts before the Codex process exits", async () => {
+  const root = mkdtempSync(join(tmpdir(), "webgpt-live-event-count-"));
+  let manager: LunaJobManager | undefined;
+  try {
+    manager = new LunaJobManager(
+      new LunaStateStore(join(root, "state.json")),
+      (_command, _args, cwd) => {
+        const script = [
+          "process.stdin.resume();",
+          "console.log(JSON.stringify({type:'thread.started',thread_id:'luna-live-event-thread'}));",
+          "console.log(JSON.stringify({type:'item.started',item:{type:'agent_message'}}));",
+          "setInterval(()=>{},1000);",
+        ].join("");
+        return spawn(process.execPath, ["-e", script], { cwd, stdio: ["pipe", "pipe", "pipe"] });
+      },
+      join(root, "logs"),
+      process.execPath,
+    );
+    const job = manager.start({ webSessionId: "conversation-live-event-count", prompt: "observe events", cwd: root, timeoutMs: 5_000 });
+    await eventually(() => {
+      const current = manager?.get(job.id);
+      return current?.status === "running" && current.eventCount >= 2;
+    });
+    expect(manager.get(job.id).eventCount).toBeGreaterThanOrEqual(2);
+    manager.cancel(job.id);
+  } finally {
+    manager?.shutdown();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("running Luna jobs persist mutationSeen before the Codex process exits", async () => {
+  const root = mkdtempSync(join(tmpdir(), "webgpt-live-mutation-"));
+  let manager: LunaJobManager | undefined;
+  try {
+    manager = new LunaJobManager(
+      new LunaStateStore(join(root, "state.json")),
+      (_command, _args, cwd) => {
+        const script = [
+          "process.stdin.resume();",
+          "console.log(JSON.stringify({type:'thread.started',thread_id:'luna-live-mutation-thread'}));",
+          "console.log(JSON.stringify({type:'item.completed',item:{type:'command_execution',aggregated_output:'changed'}}));",
+          "setInterval(()=>{},1000);",
+        ].join("");
+        return spawn(process.execPath, ["-e", script], { cwd, stdio: ["pipe", "pipe", "pipe"] });
+      },
+      join(root, "logs"),
+      process.execPath,
+    );
+    const job = manager.start({ webSessionId: "conversation-live-mutation", prompt: "observe mutation", cwd: root, timeoutMs: 5_000 });
+    await eventually(() => {
+      const current = manager?.get(job.id);
+      return current?.status === "running" && current.mutationSeen === true;
+    });
+    expect(manager.get(job.id).mutationSeen).toBe(true);
+    manager.cancel(job.id);
+  } finally {
+    manager?.shutdown();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("cancelled Luna jobs preserve events mutations and Luna session collected while running", async () => {
+  const root = mkdtempSync(join(tmpdir(), "webgpt-cancel-state-flush-"));
+  let manager: LunaJobManager | undefined;
+  try {
+    manager = new LunaJobManager(
+      new LunaStateStore(join(root, "state.json")),
+      (_command, _args, cwd) => {
+        const script = [
+          "process.stdin.resume();",
+          "console.log(JSON.stringify({type:'item.started',item:{type:'agent_message'}}));",
+          "setTimeout(()=>{",
+          "console.log(JSON.stringify({type:'thread.started',thread_id:'luna-cancel-preserved-thread'}));",
+          "console.log(JSON.stringify({type:'item.completed',item:{type:'file_change'}}));",
+          "},20);",
+          "setInterval(()=>{},1000);",
+        ].join("");
+        return spawn(process.execPath, ["-e", script], { cwd, stdio: ["pipe", "pipe", "pipe"] });
+      },
+      join(root, "logs"),
+      process.execPath,
+    );
+    const job = manager.start({ webSessionId: "conversation-cancel-preserve", prompt: "cancel after events", cwd: root, timeoutMs: 5_000 });
+    await eventually(() => existsSync(job.logPath) && readFileSync(job.logPath, "utf8").includes("file_change"));
+    manager.cancel(job.id);
+    await eventually(() => {
+      const current = manager?.get(job.id);
+      return current?.status === "cancelled"
+        && current.eventCount >= 3
+        && current.mutationSeen === true
+        && current.lunaSessionId === "luna-cancel-preserved-thread";
+    });
+    const cancelled = manager.get(job.id);
+    expect(cancelled.status).toBe("cancelled");
+    expect(cancelled.eventCount).toBeGreaterThanOrEqual(3);
+    expect(cancelled.mutationSeen).toBe(true);
+    expect(cancelled.lunaSessionId).toBe("luna-cancel-preserved-thread");
+  } finally {
+    manager?.shutdown();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("same web session serializes jobs and resumes the durable Luna session", async () => {
   const root = mkdtempSync(join(tmpdir(), "webgpt-luna-"));
   const invocations: string[][] = [];
