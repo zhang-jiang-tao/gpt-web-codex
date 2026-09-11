@@ -89,12 +89,18 @@ task without asking for a confirmation token.
 
 ## Asynchronous jobs
 
-- The default job timeout is 15 minutes and is user-adjustable.
+- `timeout_ms` remains the compatibility name for the Luna inactivity timeout. The default is 15
+  minutes and is user-adjustable.
+- A running Luna job may exceed `timeout_ms` indefinitely while Codex continues producing stdout
+  JSONL events or stderr activity. Every such activity refreshes the inactivity deadline.
+- `codexluna_status` reports the persisted `last_activity_at` timestamp so ChatGPT can distinguish a
+  long-running active task from a silent or stalled task.
 - Stopping a ChatGPT answer does not cancel Luna.
-- On timeout, request graceful cancellation, wait a short bounded grace period, then terminate only
-  the owned child process tree. Preserve the Luna session id so a later call can resume it.
-- Determine liveness from the owned process handle, terminal JSONL events, and persisted job state;
-  never infer completion solely from elapsed time.
+- When the inactivity timeout expires, request graceful cancellation, wait a short bounded grace
+  period, then terminate only the owned child process tree. Preserve the Luna session id so a later
+  call can resume it.
+- Determine liveness from the owned process handle, terminal JSONL events, stderr activity, and
+  persisted job state; never infer completion solely from total elapsed runtime.
 - Return compact progress, changed files, verification, and key errors to ChatGPT. Store full Codex
   JSONL and terminal output only in local runtime logs.
 
