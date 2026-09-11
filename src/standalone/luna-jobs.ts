@@ -170,7 +170,7 @@ export class LunaJobManager {
       if (!transient) return;
       this.store.updateJob(jobId, {
         status: "queued", error: undefined, finishedAt: undefined, terminalEvent: undefined,
-        finalMessage: undefined, pid: undefined, exitCode: undefined,
+        finalMessage: undefined, pid: undefined, exitCode: undefined, lastActivityAt: undefined,
       });
       await this.runAttempt(jobId);
     } finally {
@@ -192,7 +192,15 @@ export class LunaJobManager {
     const invocation = buildCodexInvocation(queued, binding.lunaSessionId, this.codexExecutable);
     const child = this.spawnCodex(invocation.command, invocation.args, queued.cwd);
     this.active.set(jobId, child);
-    this.store.updateJob(jobId, { status: "running", startedAt: new Date().toISOString(), pid: child.pid, attempts: queued.attempts + 1 });
+    const startedAt = new Date().toISOString();
+    let lastActivityAt = startedAt;
+    this.store.updateJob(jobId, {
+      status: "running",
+      startedAt,
+      lastActivityAt,
+      pid: child.pid,
+      attempts: queued.attempts + 1,
+    });
     let terminalEvent: string | undefined;
     let finalMessage: string | undefined;
     let lunaSessionId = binding.lunaSessionId;
@@ -203,6 +211,8 @@ export class LunaJobManager {
     let timedOut = false;
     let runtimeStateFlushTimer: ReturnType<typeof setTimeout> | undefined;
     let lastRuntimeStateFlushAt = 0;
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    let forceTimer: ReturnType<typeof setTimeout> | undefined;
 
     const flushRuntimeState = () => {
       if (runtimeStateFlushTimer) {
@@ -210,7 +220,7 @@ export class LunaJobManager {
         runtimeStateFlushTimer = undefined;
       }
       lastRuntimeStateFlushAt = Date.now();
-      this.store.updateJob(jobId, { eventCount, mutationSeen, lunaSessionId });
+      this.store.updateJob(jobId, { eventCount, mutationSeen, lunaSessionId, lastActivityAt });
     };
     const scheduleRuntimeStateFlush = () => {
       const elapsed = Date.now() - lastRuntimeStateFlushAt;
@@ -222,9 +232,8 @@ export class LunaJobManager {
       runtimeStateFlushTimer = setTimeout(flushRuntimeState, RUNTIME_STATE_FLUSH_INTERVAL_MS - elapsed);
       runtimeStateFlushTimer.unref?.();
     };
-
-    let forceTimer: ReturnType<typeof setTimeout> | undefined;
-    const timer = setTimeout(() => {
+    const handleIdleTimeout = () => {
+      if (timedOut) return;
       timedOut = true;
       child.kill("SIGTERM");
       forceTimer = setTimeout(() => {
@@ -232,7 +241,16 @@ export class LunaJobManager {
         catch (error) { stderr = `${stderr}\n${error instanceof Error ? error.message : String(error)}`.trim(); }
       }, 5_000);
       forceTimer.unref?.();
-    }, queued.timeoutMs);
+    };
+    const markActivity = () => {
+      lastActivityAt = new Date().toISOString();
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(handleIdleTimeout, queued.timeoutMs);
+      idleTimer.unref?.();
+      scheduleRuntimeStateFlush();
+    };
+
+    markActivity();
     const lines = createInterface({ input: child.stdout });
     lines.on("line", line => {
       appendFileSync(queued.logPath, `${line}\n`, "utf8");
@@ -252,16 +270,19 @@ export class LunaJobManager {
       } catch {
         // Preserve malformed output in the JSONL log; the terminal process result remains authoritative.
       }
-      scheduleRuntimeStateFlush();
+      markActivity();
     });
-    child.stderr.on("data", chunk => { stderr = `${stderr}${String(chunk)}`.slice(-16_000); });
+    child.stderr.on("data", chunk => {
+      stderr = `${stderr}${String(chunk)}`.slice(-16_000);
+      markActivity();
+    });
     child.stdin.end(`${prompt}\n`);
 
     const outcome = await new Promise<{ code: number | null; error?: Error }>(resolve => {
       child.once("error", error => resolve({ code: null, error }));
       child.once("close", code => resolve({ code }));
     });
-    clearTimeout(timer);
+    if (idleTimer) clearTimeout(idleTimer);
     if (forceTimer) clearTimeout(forceTimer);
     lines.close();
     this.active.delete(jobId);
@@ -279,6 +300,7 @@ export class LunaJobManager {
       lunaSessionId,
       mutationSeen,
       eventCount,
+      lastActivityAt,
       error: outcome.error?.message || (status === "failed" ? stderr.trim() || `Codex exited with ${outcome.code}` : undefined),
     });
   }

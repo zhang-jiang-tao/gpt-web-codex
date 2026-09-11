@@ -32,6 +32,7 @@ export interface LunaJob {
   status: LunaJobStatus;
   createdAt: string;
   startedAt?: string;
+  lastActivityAt?: string;
   finishedAt?: string;
   lunaSessionId?: string;
   pid?: number;
