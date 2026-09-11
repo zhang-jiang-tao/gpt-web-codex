@@ -358,13 +358,13 @@ export async function runChatGptMcpServer(options: { statePath?: string } = {}):
 
   server.registerTool("codexluna_status", {
     title: "Get Luna execution status",
-    description: "Poll an asynchronous Luna task. Completed results are compact; full JSONL remains in the local log. Image artifacts may be returned as native MCP image content, but visible inline preview UI is handled only by the dedicated file_image_preview tool.",
+    description: "Poll an asynchronous Luna task. last_activity_at reports the most recent Codex stdout/stderr activity. Completed results are compact; full JSONL remains in the local log. Image artifacts may be returned as native MCP image content, but visible inline preview UI is handled only by the dedicated file_image_preview tool.",
     inputSchema: { job_id: z.string().uuid() },
     outputSchema: {
       web_session_id: sessionId, job_id: z.string().uuid(), status: jobStatus,
       luna_session_id: z.string().nullable(), workspace_path: z.string(),
       terminal_event: z.string().nullable(), final_message: z.string().nullable(), error: z.string().nullable(),
-      mutation_seen: z.boolean(), event_count: z.number().int().nonnegative(),
+      mutation_seen: z.boolean(), event_count: z.number().int().nonnegative(), last_activity_at: z.string().nullable(),
       image_artifacts: z.array(z.string()), image_preview_rendered: z.boolean(),
       image_preview_error: z.string().nullable(), image_preview_id: z.string().uuid().nullable(),
       session_policy: compactPolicySchema,
@@ -393,6 +393,7 @@ export async function runChatGptMcpServer(options: { statePath?: string } = {}):
       job_id: job.id, status: job.status, luna_session_id: job.lunaSessionId ?? null,
       workspace_path: job.cwd, terminal_event: job.terminalEvent ?? null, final_message: job.finalMessage ?? null,
       error: job.error ?? null, mutation_seen: job.mutationSeen, event_count: job.eventCount,
+      last_activity_at: job.lastActivityAt ?? null,
       image_artifacts: job.imageArtifacts ?? [], image_preview_rendered: imagePreviewRendered,
       image_preview_error: previewError,
     }, preview, imagePreviews);
